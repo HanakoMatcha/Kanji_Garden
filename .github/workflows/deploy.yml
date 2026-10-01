@@ -20,18 +20,34 @@ jobs:
         with:
           node-version: 22
 
-      - name: Clonar motor de Quartz e instalar dependencias
+      - name: Clonar motor de Quartz si no existe
         run: |
-          # Clonar Quartz oficial en una carpeta temporal 'quartz-engine'
           git clone --depth 1 https://github.com/jackyzha0/quartz.git quartz-engine
-          
-          # Mover archivos de Quartz a la raíz sin borrar los tuyos
           cp -rn quartz-engine/* .
           rm -rf quartz-engine
-          
-          # Instalar dependencias de Quartz y el parseador de CSV
+
+      - name: Caché de dependencias npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Instalar dependencias
+        run: |
           npm install
           npm install csv-parse
+
+      - name: Caché de Quartz (Build & AST)
+        uses: actions/cache@v4
+        with:
+          path: |
+            .quartz-cache
+            public
+          key: ${{ runner.os }}-quartz-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-quartz-
 
       - name: Descargar de Sheets y generar Markdown
         run: node build-garden.js
