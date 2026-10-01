@@ -22,7 +22,7 @@ function escribirSiCambio(ruta, contenidoNuevo) {
   if (fs.existsSync(ruta)) {
     const contenidoViejo = fs.readFileSync(ruta, "utf8");
     if (contenidoViejo === contenidoNuevo) {
-      return; // No modifica el archivo ni su fecha de modificación
+      return;
     }
   }
   fs.writeFileSync(ruta, contenidoNuevo);
@@ -51,10 +51,13 @@ async function main() {
   const kanjiRecords = parse(textKanji, { columns: true, skip_empty_lines: true });
 
   const componentesGlobales = new Set();
+  const listaKanjis = [];
 
   kanjiRecords.forEach((row) => {
     const kanji = row["Kanji"]?.trim();
     if (!kanji) return;
+
+    listaKanjis.push(kanji);
 
     const onyomi = row["Onyomi"]?.trim() || "";
     const kunyomi = row["Kunyomi"]?.trim() || "";
@@ -66,8 +69,8 @@ async function main() {
     const comps = Array.from(componentesRaw).filter((c) => c !== " " && c !== " ");
     comps.forEach((c) => componentesGlobales.add(c));
 
-    const compsLinks = comps.length > 0 ? comps.map((c) => `[[${c}]]`).join(", ") : "Ninguno";
-    const kyujitaiLink = kyujitai ? `[[${kyujitai}]]` : "None";
+    const compsLinks = comps.length > 0 ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") : "Ninguno";
+    const kyujitaiLink = kyujitai ? `[[kanji/${kyujitai}|${kyujitai}]]` : "None";
 
     const md = `---
 title: "${kanji}"
@@ -98,8 +101,10 @@ ${etimologia || "Sin datos registrados."}
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
   });
 
-  // Notas de componentes
+  // Notas e índice de componentes
+  const listaComponentes = [];
   componentesGlobales.forEach((comp) => {
+    listaComponentes.push(comp);
     const md = `---
 title: "${comp}"
 tipo: componente
@@ -118,9 +123,13 @@ Revisa los backlinks para ver kanjis con este componente.
   const textVocab = await resVocab.text();
   const vocabRecords = parse(textVocab, { columns: true, skip_empty_lines: true });
 
+  const listaVocab = [];
+
   vocabRecords.forEach((row) => {
     const palabra = row["日本語"]?.trim();
     if (!palabra) return;
+
+    listaVocab.push(palabra);
 
     const kana = row["かな"]?.trim() || "";
     const en = row["English"]?.trim() || "";
@@ -128,7 +137,7 @@ Revisa los backlinks para ver kanjis con este componente.
     const jlpt = row["JLPT"]?.trim() || "Sin nivel JLPT";
 
     const kanjis = extraerKanjis(palabra);
-    const kanjiLinks = kanjis.length > 0 ? kanjis.map((k) => `[[${k}]]`).join(", ") : "Kana puro";
+    const kanjiLinks = kanjis.length > 0 ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") : "Kana puro";
 
     const md = `---
 title: "${palabra}"
@@ -146,13 +155,49 @@ tags:
 **Kanjis:** ${kanjiLinks}
 
 **JLPT:** ${jlpt}
-
 `;
     const safeName = palabra.replace(/[/\\?%*:|"<>]/g, "_");
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Crear la página principal del jardín
+  // 3. Crear índices para cada carpeta
+  const indexKanjiMd = `---
+title: Índice de Kanjis
+---
+# Índice de Kanjis
+
+Total registrados: ${listaKanjis.length}
+
+${listaKanjis.map((k) => `- [[kanji/${k}\vert{}${k}]]`).join("\n")}
+`;
+  escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
+
+  const indexVocabMd = `---
+title: Índice de Vocabulario
+---
+# Índice de Vocabulario
+
+Total registrados: ${listaVocab.length}
+
+${listaVocab.map((v) => {
+  const safe = v.replace(/[/\\?%*:|"<>]/g, "_");
+  return `- [[vocab/${safe}\vert{}${v}]]`;
+}).join("\n")}
+`;
+  escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
+
+  const indexCompMd = `---
+title: Índice de Componentes
+---
+# Índice de Componentes
+
+Total registrados: ${listaComponentes.length}
+
+${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
+`;
+  escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
+
+  // 4. Página principal del jardín
   const indexMd = `---
 title: Jardín Léxico y Kanji
 ---
@@ -161,15 +206,13 @@ title: Jardín Léxico y Kanji
 
 Base de datos viva interconectada a partir de Google Sheets.
 
-[[kanji|Explorar Kanjis]]
-
-[[vocab|Explorar Vocabulario]]
-
-[[componentes|Explorar Componentes y Radicales]]
+- [[kanji/index|Explorar Kanjis]]
+- [[vocab/index|Explorar Vocabulario]]
+- [[componentes/index|Explorar Componentes y Radicales]]
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
-  console.log("¡Notas generadas exitosamente!");
+  console.log("¡Notas e índices generados exitosamente con rutas relativas corregidas!");
 }
 
 main();
