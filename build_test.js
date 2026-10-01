@@ -160,7 +160,7 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Crear índices para cada carpeta (con pipes normales |)
+// 3. Crear índices para cada carpeta
   const indexKanjiMd = `---
 title: Índice de Kanjis
 ---
@@ -196,7 +196,6 @@ Total registrados: ${listaComponentes.length}
 ${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
-
   // 4. Portada
   const indexMd = `---
 title: Jardín Léxico y Kanji
