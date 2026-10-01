@@ -1,0 +1,32 @@
+name: Actualizar y Desplegar Jardín
+
+on:
+  workflow_dispatch: # Botón manual para actualizar cuando quieras
+  schedule:
+    - cron: '0 4 * * *' # Opcional: corre solo todas las noches a las 4 AM UTC
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: |
+          npm install
+          npm install csv-parse
+
+      - name: Descargar de Sheets y generar Markdown
+        run: node build-garden.js
+
+      - name: Compilar Quartz
+        run: npx quartz build
+
+      - name: Publicar en GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
