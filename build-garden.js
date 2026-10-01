@@ -17,6 +17,17 @@ const CONTENT_DIR = "./content";
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
+// Función para no tocar archivos idénticos y mantener la caché
+function escribirSiCambio(ruta, contenidoNuevo) {
+  if (fs.existsSync(ruta)) {
+    const contenidoViejo = fs.readFileSync(ruta, "utf8");
+    if (contenidoViejo === contenidoNuevo) {
+      return; // No modifica el archivo ni su fecha de modificación
+    }
+  }
+  fs.writeFileSync(ruta, contenidoNuevo);
+}
+
 function extraerKanjis(texto) {
   if (!texto) return [];
   const regex = /[\u4E00-\u9FAF\u3400-\u4DBF]/g;
@@ -71,17 +82,20 @@ tags:
 
 > **${significado}**
 
-* **On:** ${onyomi || "—"}
-* **Kun:** ${kunyomi || "—"}
-* **Kyūjitai:** ${kyujitaiLink}
-* **Componentes:** ${compsLinks}
+**On:** ${onyomi || "—"}
+
+**Kun:** ${kunyomi || "—"}
+
+**Kyūjitai:** ${kyujitaiLink}
+
+**Componentes:** ${compsLinks}
 
 ---
 
 ## Etimología
 ${etimologia || "Sin datos registrados."}
 `;
-    fs.writeFileSync(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
+    escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
   });
 
   // Notas de componentes
@@ -95,7 +109,7 @@ tags:
 # Componente: ${comp}
 Revisa los backlinks para ver kanjis con este componente.
 `;
-    fs.writeFileSync(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
+    escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
   });
 
   // 2. Descargar y procesar Vocab
@@ -129,11 +143,13 @@ tags:
 > **ES:** ${es || "—"}  
 > **EN:** ${en || "—"}
 
-* **Kanjis:** ${kanjiLinks}
-* **JLPT:** ${jlpt}
+**Kanjis:** ${kanjiLinks}
+
+**JLPT:** ${jlpt}
+
 `;
     const safeName = palabra.replace(/[/\\?%*:|"<>]/g, "_");
-    fs.writeFileSync(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
+    escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
   // 3. Crear la página principal del jardín
@@ -145,11 +161,13 @@ title: Jardín Léxico y Kanji
 
 Base de datos viva interconectada a partir de Google Sheets.
 
-* [[kanji|Explorar Kanjis]]
-* [[vocab|Explorar Vocabulario]]
-* [[componentes|Explorar Componentes y Radicales]]
+[[kanji|Explorar Kanjis]]
+
+[[vocab|Explorar Vocabulario]]
+
+[[componentes|Explorar Componentes y Radicales]]
 `;
-  fs.writeFileSync(path.join(CONTENT_DIR, "index.md"), indexMd);
+  escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
   console.log("¡Notas generadas exitosamente!");
 }
