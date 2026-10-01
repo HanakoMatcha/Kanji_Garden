@@ -6,6 +6,9 @@ import { parse } from "csv-parse/sync";
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
 
+// TU RUTA DE GITHUB (sin https:// ni barra final)
+const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
+
 const CONTENT_DIR = "./content";
 
 // Crear carpetas de destino
@@ -21,6 +24,15 @@ function extraerKanjis(texto) {
 }
 
 async function main() {
+  // Ajustar baseUrl en quartz.config.ts automáticamente
+  const configPath = "./quartz.config.ts";
+  if (fs.existsSync(configPath)) {
+    console.log("Configurando baseUrl en quartz.config.ts...");
+    let config = fs.readFileSync(configPath, "utf8");
+    config = config.replace(/baseUrl:\s*"[^"]*"/, `baseUrl: "${MI_BASE_URL}"`);
+    fs.writeFileSync(configPath, config, "utf8");
+  }
+
   // 1. Descargar y procesar BaseKanji
   console.log("Descargando BaseKanji...");
   const resKanji = await fetch(URL_KANJI);
@@ -123,7 +135,8 @@ tags:
     const safeName = palabra.replace(/[/\\?%*:|"<>]/g, "_");
     fs.writeFileSync(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
-// Crear la página principal del jardín
+
+  // 3. Crear la página principal del jardín
   const indexMd = `---
 title: Jardín Léxico y Kanji
 ---
@@ -137,6 +150,7 @@ Base de datos viva interconectada a partir de Google Sheets.
 * [[componentes|Explorar Componentes y Radicales]]
 `;
   fs.writeFileSync(path.join(CONTENT_DIR, "index.md"), indexMd);
+
   console.log("¡Notas generadas exitosamente!");
 }
 
