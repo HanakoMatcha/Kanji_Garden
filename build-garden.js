@@ -123,7 +123,20 @@ tags:
     const safeName = palabra.replace(/[/\\?%*:|"<>]/g, "_");
     fs.writeFileSync(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
+// Crear la página principal del jardín
+  const indexMd = `---
+title: Jardín Léxico y Kanji
+---
 
+# Jardín Digital de Kanji y Vocabulario
+
+Base de datos viva interconectada a partir de Google Sheets.
+
+* [[kanji|Explorar Kanjis]]
+* [[vocab|Explorar Vocabulario]]
+* [[componentes|Explorar Componentes y Radicales]]
+`;
+  fs.writeFileSync(path.join(CONTENT_DIR, "index.md"), indexMd);
   console.log("¡Notas generadas exitosamente!");
 }
 
