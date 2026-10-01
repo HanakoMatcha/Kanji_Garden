@@ -160,7 +160,7 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-// 3. Crear índices para cada carpeta
+// 3. Crear índices para cada carpeta (usando rutas estándar)
   const indexKanjiMd = `---
 title: Índice de Kanjis
 ---
@@ -168,7 +168,7 @@ title: Índice de Kanjis
 
 Total registrados: ${listaKanjis.length}
 
-${listaKanjis.map((k) => `- [[kanji/${k}\vert{}${k}]]`).join("\n")}
+${listaKanjis.map((k) => `- [${k}](./${encodeURIComponent(k)})`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
 
@@ -181,7 +181,7 @@ Total registrados: ${listaVocab.length}
 
 ${listaVocab.map((v) => {
   const safe = v.replace(/[/\\?%*:|"<>]/g, "_");
-  return `- [[vocab/${safe}\vert{}${v}]]`;
+  return `- [${v}](./${encodeURIComponent(safe)})`;
 }).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
@@ -193,9 +193,11 @@ title: Índice de Componentes
 
 Total registrados: ${listaComponentes.length}
 
-${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
+${listaComponentes.map((c) => `- [${c}](./${encodeURIComponent(c)})`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
+  
+  
   // 4. Portada
   const indexMd = `---
 title: Jardín Léxico y Kanji
