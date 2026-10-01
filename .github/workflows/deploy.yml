@@ -5,7 +5,6 @@ on:
   schedule:
     - cron: '0 4 * * *'
 
-# Permisos necesarios para escribir en GitHub Pages
 permissions:
   contents: write
 
@@ -13,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Descargar repositorio
+      - name: Descargar tu repositorio
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
@@ -21,14 +20,20 @@ jobs:
         with:
           node-version: 22
 
-      - name: Preparar dependencias
+      - name: Clonar motor de Quartz e instalar dependencias
         run: |
-          if [ ! -f package.json ]; then
-            echo '{"name":"jardin-kanji","type":"module"}' > package.json
-          fi
-          npm install csv-parse @jackyzha0/quartz
+          # Clonar Quartz oficial en una carpeta temporal 'quartz-engine'
+          git clone --depth 1 https://github.com/jackyzha0/quartz.git quartz-engine
+          
+          # Mover archivos de Quartz a la raíz sin borrar los tuyos
+          cp -rn quartz-engine/* .
+          rm -rf quartz-engine
+          
+          # Instalar dependencias de Quartz y el parseador de CSV
+          npm install
+          npm install csv-parse
 
-      - name: Generar archivos Markdown desde Google Sheets
+      - name: Descargar de Sheets y generar Markdown
         run: node build-garden.js
 
       - name: Compilar Quartz
