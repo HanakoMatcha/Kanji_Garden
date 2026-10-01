@@ -49,8 +49,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-quartz-
 
+      - name: Limpiar contenido previo para modo test
+        run: rm -rf content/*
+
       - name: Descargar de Sheets y generar Markdown
-        run: node build-garden.js
+        run: node build_test.js
 
       - name: Compilar Quartz
         run: npx quartz build
