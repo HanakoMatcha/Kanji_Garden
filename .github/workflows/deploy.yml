@@ -12,8 +12,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Descargar tu repositorio
+      - name: Descargar repositorio
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -61,5 +63,8 @@ jobs:
       - name: Publicar en GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
