@@ -2,9 +2,9 @@ import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
 
-// URLs públicas en formato CSV de tu Google Sheets
-const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
-const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
+// URLs públicas en formato CSV de tus pestañas TEST
+const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=654834278&single=true&output=csv";
+const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=1745742637&single=true&output=csv";
 
 // TU RUTA DE GITHUB (sin https:// ni barra final)
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
@@ -44,8 +44,8 @@ async function main() {
     fs.writeFileSync(configPath, config, "utf8");
   }
 
-  // 1. Descargar y procesar BaseKanji
-  console.log("Descargando BaseKanji...");
+  // 1. Descargar y procesar BaseKanji TEST
+  console.log("Descargando BaseKanji TEST...");
   const resKanji = await fetch(URL_KANJI);
   const textKanji = await resKanji.text();
   const kanjiRecords = parse(textKanji, { columns: true, skip_empty_lines: true });
@@ -101,7 +101,7 @@ ${etimologia || "Sin datos registrados."}
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
   });
 
-  // Notas e índice de componentes
+  // Notas de componentes
   const listaComponentes = [];
   componentesGlobales.forEach((comp) => {
     listaComponentes.push(comp);
@@ -117,8 +117,8 @@ Revisa los backlinks para ver kanjis con este componente.
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
   });
 
-  // 2. Descargar y procesar Vocab
-  console.log("Descargando Vocab...");
+  // 2. Descargar y procesar Vocab TEST
+  console.log("Descargando Vocab TEST...");
   const resVocab = await fetch(URL_VOCAB);
   const textVocab = await resVocab.text();
   const vocabRecords = parse(textVocab, { columns: true, skip_empty_lines: true });
@@ -160,7 +160,7 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Crear índices para cada carpeta
+  // 3. Crear índices para cada carpeta (con pipes normales |)
   const indexKanjiMd = `---
 title: Índice de Kanjis
 ---
@@ -197,7 +197,7 @@ ${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
-  // 4. Página principal del jardín
+  // 4. Portada
   const indexMd = `---
 title: Jardín Léxico y Kanji
 ---
