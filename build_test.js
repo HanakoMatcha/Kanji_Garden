@@ -17,12 +17,17 @@ const CONTENT_DIR = "./content";
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
+function escaparYaml(cadena) {
+  if (!cadena) return "";
+  return cadena.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 function escribirSiCambio(ruta, contenidoNuevo) {
   if (fs.existsSync(ruta)) {
     const contenidoViejo = fs.readFileSync(ruta, "utf8");
     if (contenidoViejo === contenidoNuevo) return;
   }
-  fs.writeFileSync(ruta, contenidoNuevo);
+  fs.writeFileSync(ruta, contenidoNuevo, "utf8");
 }
 
 function extraerKanjis(texto) {
@@ -71,14 +76,16 @@ async function main() {
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
 
-    const compsLinks = comps.length > 0 ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") : "Ninguno";
+    const compsLinks = comps.length > 0 
+      ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") 
+      : "Ninguno";
     const kyujitaiLink = kyujitai ? `[[kanji/${kyujitai}|${kyujitai}]]` : "None";
 
     const md = `---
-title: "${kanji}"
+title: "${escaparYaml(kanji)}"
 tipo: kanji
-onyomi: "${onyomi}"
-kunyomi: "${kunyomi}"
+onyomi: "${escaparYaml(onyomi)}"
+kunyomi: "${escaparYaml(kunyomi)}"
 tags:
   - kanji
 ---
@@ -107,7 +114,7 @@ ${etimologia || "Sin datos registrados."}
   const listaComponentes = Array.from(componentesGlobales);
   listaComponentes.forEach((comp) => {
     const md = `---
-title: "${comp}"
+title: "${escaparYaml(comp)}"
 tipo: componente
 tags:
   - radical
@@ -137,11 +144,13 @@ Revisa los backlinks para ver kanjis con este componente.
     const jlpt = row["JLPT"]?.trim() || "Sin nivel JLPT";
 
     const kanjis = extraerKanjis(palabra);
-    const kanjiLinks = kanjis.length > 0 ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") : "Kana puro";
+    const kanjiLinks = kanjis.length > 0 
+      ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") 
+      : "Kana puro";
 
     const md = `---
-title: "${palabra}"
-kana: "${kana}"
+title: "${escaparYaml(palabra)}"
+kana: "${escaparYaml(kana)}"
 tipo: vocabulario
 tags:
   - vocabulario
@@ -161,8 +170,7 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-
-  // 3. Crear índices con enlaces Markdown directos
+  // 3. Crear índices con Wikilinks compatibles con Quartz
   const indexKanjiMd = `---
 title: "Kanji"
 ---
@@ -170,7 +178,7 @@ title: "Kanji"
 
 Total registrados: ${listaKanjis.length}
 
-${listaKanjis.map((k) => `- [${k}](./${encodeURIComponent(k)})`).join("\n")}
+${listaKanjis.map((k) => `- [[kanji/${k}\vert{}${k}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
 
@@ -181,7 +189,7 @@ title: "Vocabulario"
 
 Total registrados: ${listaVocab.length}
 
-${listaVocab.map((v) => `- [${v.palabra}](./${encodeURIComponent(v.safeName)})`).join("\n")}
+${listaVocab.map((v) => `- [[vocab/${v.safeName}\vert{}${v.palabra}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
 
@@ -192,7 +200,7 @@ title: "Componentes"
 
 Total registrados: ${listaComponentes.length}
 
-${listaComponentes.map((c) => `- [${c}](./${encodeURIComponent(c)})`).join("\n")}
+${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
@@ -205,13 +213,13 @@ title: "Inicio"
 
 Base de datos viva interconectada a partir de Google Sheets.
 
-- [Explorar Kanjis](./kanji/)
-- [Explorar Vocabulario](./vocab/)
-- [Explorar Componentes y Radicales](./componentes/)
+- [[kanji/index|Explorar Kanjis]]
+- [[vocab/index|Explorar Vocabulario]]
+- [[componentes/index|Explorar Componentes y Radicales]]
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
-  console.log("¡Notas e índices generados con URLs TEST!");
+  console.log("¡Notas e índices generados con éxito!");
 }
 
 main();
