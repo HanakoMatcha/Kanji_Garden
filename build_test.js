@@ -6,18 +6,16 @@ import { parse } from "csv-parse/sync";
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=654834278&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=1745742637&single=true&output=csv";
 
-// RUTA DE GITHUB (sin https:// ni barra final)
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
-
 const CONTENT_DIR = "./content";
 
-// Crear carpetas de destino
+// Asegurar que existan los directorios
 ["vocab", "kanji", "componentes"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
-// Limpieza de caracteres de control y caracteres especiales no deseados
+// Limpieza de caracteres de control indeseados (soluciona texto corrupto)
 function limpiarTexto(cadena) {
   if (!cadena) return "";
   return String(cadena)
@@ -26,12 +24,20 @@ function limpiarTexto(cadena) {
     .trim();
 }
 
-// Escapa caracteres para el frontmatter YAML
+// Escapado para YAML Frontmatter para que no rompa el Grafo visual
 function escaparYaml(cadena) {
   if (!cadena) return "";
   return limpiarTexto(cadena)
     .replace(/\\/g, "\\\\")
     .replace(/"/g, '\\"');
+}
+
+// Generador de nombres seguros para archivos y slugs
+function sanitizarNombreArchivo(texto) {
+  return texto
+    .trim()
+    .replace(/[/\\?%*:|"<>#]/g, "_")
+    .replace(/\s+/g, "_");
 }
 
 function escribirSiCambio(ruta, contenidoNuevo) {
@@ -55,18 +61,21 @@ function filtrarComponentesValidos(texto) {
 }
 
 async function main() {
+  // Configuración de baseUrl en quartz.config.ts
   const configPath = "./quartz.config.ts";
   if (fs.existsSync(configPath)) {
-    console.log("Configurando baseUrl en quartz.config.ts...");
     let config = fs.readFileSync(configPath, "utf8");
     config = config.replace(/baseUrl:\s*"[^"]*"/, `baseUrl: "${MI_BASE_URL}"`);
     fs.writeFileSync(configPath, config, "utf8");
   }
 
-  // --- 1. PROCESAR KANJIS ---
+  // ==========================================
+  // 1. PROCESAR KANJI
+  // ==========================================
   console.log("Descargando BaseKanji TEST...");
   const resKanji = await fetch(URL_KANJI);
-  const textKanji = await resKanji.text();
+  const bufferKanji = await resKanji.arrayBuffer();
+  const textKanji = new TextDecoder("utf-8").decode(bufferKanji);
   const kanjiRecords = parse(textKanji, { columns: true, skip_empty_lines: true });
 
   const componentesGlobales = new Set();
@@ -88,7 +97,6 @@ async function main() {
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
 
-    // Enlace directo al componente
     const compsLinks = comps.length > 0 
       ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") 
       : "Ninguno";
@@ -99,9 +107,6 @@ async function main() {
 
     const md = `---
 title: "${escaparYaml(kanji)}"
-tipo: kanji
-onyomi: "${escaparYaml(onyomi)}"
-kunyomi: "${escaparYaml(kunyomi)}"
 tags:
   - kanji
 ---
@@ -126,27 +131,29 @@ ${etimologia || "Sin datos registrados."}
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
   });
 
-  // Crear notas individuales para componentes
+  // Notas de Componentes
   const listaComponentes = Array.from(componentesGlobales);
   listaComponentes.forEach((comp) => {
     const md = `---
 title: "${escaparYaml(comp)}"
-tipo: componente
 tags:
-  - radical
+  - componente
 ---
 
 # Componente: ${comp}
 
-Revisa los enlaces inversos (backlinks) para ver kanjis con este componente.
+Revisa los enlaces de retroceso (backlinks) o el grafo para ver los kanjis que comparten este radical.
 `;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
   });
 
-  // --- 2. PROCESAR VOCABULARIO ---
+  // ==========================================
+  // 2. PROCESAR VOCABULARIO
+  // ==========================================
   console.log("Descargando Vocab TEST...");
   const resVocab = await fetch(URL_VOCAB);
-  const textVocab = await resVocab.text();
+  const bufferVocab = await resVocab.arrayBuffer();
+  const textVocab = new TextDecoder("utf-8").decode(bufferVocab);
   const vocabRecords = parse(textVocab, { columns: true, skip_empty_lines: true });
 
   const listaVocab = [];
@@ -165,15 +172,16 @@ Revisa los enlaces inversos (backlinks) para ver kanjis con este componente.
       ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") 
       : "Kana puro";
 
+    const fileName = sanitizarNombreArchivo(palabra);
+    listaVocab.push({ palabra, fileName });
+
     const md = `---
 title: "${escaparYaml(palabra)}"
-kana: "${escaparYaml(kana)}"
-tipo: vocabulario
 tags:
   - vocabulario
 ---
 
-# ${palabra} (${kana})
+# ${palabra} ${kana ? `(${kana})` : ""}
 
 > **ES:** ${es || "—"}  
 > **EN:** ${en || "—"}
@@ -182,12 +190,12 @@ tags:
 
 **JLPT:** ${jlpt}
 `;
-    const safeName = palabra.replace(/[/\\?%*:|"<>]/g, "_");
-    listaVocab.push({ palabra, safeName });
-    escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
+    escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${fileName}.md`), md);
   });
 
-  // --- 3. CREAR ÍNDICES (INDEX.MD) ---
+  // ==========================================
+  // 3. GENERAR ÍNDICES
+  // ==========================================
   const indexKanjiMd = `---
 title: "Kanjis"
 ---
@@ -208,7 +216,7 @@ title: "Vocabulario"
 
 Total registrados: ${listaVocab.length}
 
-${listaVocab.map((v) => `- [[vocab/${v.safeName}\vert{}${v.palabra}]]`).join("\n")}
+${listaVocab.map((v) => `- [[vocab/${v.fileName}\vert{}${v.palabra}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
 
@@ -224,22 +232,24 @@ ${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
-  // --- 4. PORTADA PRINCIPAL ---
+  // ==========================================
+  // 4. PORTADA PRINCIPAL (INDEX.MD)
+  // ==========================================
   const indexMd = `---
 title: "Inicio"
 ---
 
 # Jardín Digital de Kanji y Vocabulario
 
-Base de datos viva interconectada a partir de Google Sheets.
+Explorador de base de datos interconectada:
 
-- [[kanji/index|Explorar Kanjis]]
-- [[vocab/index|Explorar Vocabulario]]
-- [[componentes/index|Explorar Componentes y Radicales]]
+- [[kanji/index|📚 Ver Kanjis]]
+- [[vocab/index|📖 Ver Vocabulario]]
+- [[componentes/index|🧩 Ver Componentes y Radicales]]
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
-  console.log("¡Notas e índices generados con éxito!");
+  console.log("¡Proceso completado exitosamente!");
 }
 
 main();
