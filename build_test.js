@@ -8,6 +8,7 @@ const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 const CONTENT_DIR = "./content";
 
+// Asegurar carpetas limpias
 ["vocab", "kanji", "componentes"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
@@ -23,8 +24,17 @@ function escribirSiCambio(ruta, contenidoNuevo) {
 
 function extraerKanjis(texto) {
   if (!texto) return [];
-  const regex = /[\u4E00-\u9FAF\u3400-\u4DBF]/g;
+  const regex = /[\u4E00-\u9FAF\u3400-\u4DBF\u{20000}-\u{2A6DF}]/gu;
   return Array.from(new Set(texto.match(regex) || []));
+}
+
+// Filtro estricto para componentes: solo caracteres CJK y radicales, sin saltos ni controles
+function filtrarComponentesValidos(texto) {
+  if (!texto) return [];
+  // Rango CJK Unified, Extensiones A-F, Radicales CJK y Suplementos Kangxi
+  const regex = /[\u2E80-\u2FD5\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u{20000}-\u{2EBEF}]/gu;
+  const encontrados = texto.match(regex) || [];
+  return Array.from(new Set(encontrados));
 }
 
 async function main() {
@@ -53,11 +63,11 @@ async function main() {
     const onyomi = row["Onyomi"]?.trim() || "";
     const kunyomi = row["Kunyomi"]?.trim() || "";
     const significado = row["Significado"]?.trim() || "";
-    const componentesRaw = row["Componentes Reales (Completos)"]?.trim() || "";
+    const componentesRaw = row["Componentes Reales (Completos)"] || "";
     const kyujitai = row["Kyujitai (Kanji Antiguo)"]?.trim() || "";
     const etimologia = row["Etimología"]?.trim() || "";
 
-    const comps = Array.from(componentesRaw).filter((c) => c !== " " && c !== " ");
+    const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
 
     const compsLinks = comps.length > 0 
@@ -92,10 +102,9 @@ ${etimologia || "Sin datos registrados."}
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
   });
 
-  // 2. Componentes
-  const listaComponentes = [];
-  componentesGlobales.forEach((comp) => {
-    listaComponentes.push(comp);
+  // 2. Componentes individuales (solo válidos)
+  const listaComponentes = Array.from(componentesGlobales);
+  listaComponentes.forEach((comp) => {
     const md = `---
 title: "${comp}"
 tags:
@@ -119,8 +128,6 @@ Revisa los backlinks para ver kanjis con este componente.
   vocabRecords.forEach((row) => {
     const palabra = row["日本語"]?.trim();
     if (!palabra) return;
-
-    listaVocab.push(palabra);
 
     const kana = row["かな"]?.trim() || "";
     const en = row["English"]?.trim() || "";
@@ -148,10 +155,11 @@ tags:
 **JLPT:** ${jlpt}
 `;
     const safeName = palabra.replace(/[/\\?%*:|"<>]/g, "_");
+    listaVocab.push({ display: palabra, file: safeName });
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 4. Índices para cada subcarpeta
+  // 4. Índices limpios con rutas directas relativas (resuelven 100% en GitHub Pages)
   const indexKanjiMd = `---
 title: Kanjis
 ---
@@ -159,7 +167,7 @@ title: Kanjis
 
 Total registrados: ${listaKanjis.length}
 
-${listaKanjis.map((k) => `- [[kanji/${k}\vert{}${k}]]`).join("\n")}
+${listaKanjis.map((k) => `- [${k}](./${encodeURIComponent(k)})`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
 
@@ -170,10 +178,7 @@ title: Vocabulario
 
 Total registrados: ${listaVocab.length}
 
-${listaVocab.map((v) => {
-  const safe = v.replace(/[/\\?%*:|"<>]/g, "_");
-  return `- [[vocab/${safe}\vert{}${v}]]`;
-}).join("\n")}
+${listaVocab.map((v) => `- [${v.display}](./${encodeURIComponent(v.file)})`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
 
@@ -184,7 +189,7 @@ title: Componentes
 
 Total registrados: ${listaComponentes.length}
 
-${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
+${listaComponentes.map((c) => `- [${c}](./${encodeURIComponent(c)})`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
@@ -196,13 +201,13 @@ title: Jardín Léxico y Kanji
 
 Base de datos viva interconectada a partir de Google Sheets.
 
-- [[kanji/index|Explorar Kanjis]]
-- [[vocab/index|Explorar Vocabulario]]
-- [[componentes/index|Explorar Componentes y Radicales]]
+- [Explorar Kanjis](./kanji/)
+- [Explorar Vocabulario](./vocab/)
+- [Explorar Componentes y Radicales](./componentes/)
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
-  console.log("¡Notas e índices generados correctamente!");
+  console.log("¡Notas e índices generados sin caracteres corruptos!");
 }
 
 main();
