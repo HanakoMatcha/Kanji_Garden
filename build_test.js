@@ -11,30 +11,12 @@ const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 
 const CONTENT_DIR = "./content";
 
-// Crear carpetas de destino si no existen
+// Crear carpetas de destino
 ["vocab", "kanji", "componentes"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
-// 1. Limpieza de caracteres de control, saltos extraños y artefactos de LaTeX
-function limpiarTexto(cadena) {
-  if (!cadena) return "";
-  return String(cadena)
-    .replace(/\\?vert\{\}/g, "|")                  // Elimina residuos \vert{} o vert{}
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // Elimina bytes de control invisibles (\v, etc.)
-    .trim();
-}
-
-// 2. Escapa comillas dobles para no romper el frontmatter YAML
-function escaparYaml(cadena) {
-  if (!cadena) return "";
-  return limpiarTexto(cadena)
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"');
-}
-
-// 3. Escribe únicamente si el contenido ha cambiado para no sobrecargar timestamps
 function escribirSiCambio(ruta, contenidoNuevo) {
   if (fs.existsSync(ruta)) {
     const contenidoViejo = fs.readFileSync(ruta, "utf8");
@@ -43,14 +25,12 @@ function escribirSiCambio(ruta, contenidoNuevo) {
   fs.writeFileSync(ruta, contenidoNuevo, "utf8");
 }
 
-// 4. Extracción de kanjis mediante Unicode Regex
 function extraerKanjis(texto) {
   if (!texto) return [];
   const regex = /[\u4E00-\u9FAF\u3400-\u4DBF\u{20000}-\u{2A6DF}]/gu;
   return Array.from(new Set(texto.match(regex) || []));
 }
 
-// 5. Extracción de radicales y componentes de caracteres
 function filtrarComponentesValidos(texto) {
   if (!texto) return [];
   const regex = /[\u2E80-\u2FD5\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u{20000}-\u{2EBEF}]/gu;
@@ -66,7 +46,7 @@ async function main() {
     fs.writeFileSync(configPath, config, "utf8");
   }
 
-  // --- SECCIÓN 1: PROCESAR KANJIS ---
+  // 1. Descargar y procesar BaseKanji TEST
   console.log("Descargando BaseKanji TEST...");
   const resKanji = await fetch(URL_KANJI);
   const textKanji = await resKanji.text();
@@ -76,35 +56,29 @@ async function main() {
   const listaKanjis = [];
 
   kanjiRecords.forEach((row) => {
-    const kanji = limpiarTexto(row["Kanji"]);
+    const kanji = row["Kanji"]?.trim();
     if (!kanji) return;
 
     listaKanjis.push(kanji);
 
-    const onyomi = limpiarTexto(row["Onyomi"]);
-    const kunyomi = limpiarTexto(row["Kunyomi"]);
-    const significado = limpiarTexto(row["Significado"]);
-    const componentesRaw = limpiarTexto(row["Componentes Reales (Completos)"]);
-    const kyujitai = limpiarTexto(row["Kyujitai (Kanji Antiguo)"]);
-    const etimologia = limpiarTexto(row["Etimología"]);
+    const onyomi = row["Onyomi"]?.trim() || "";
+    const kunyomi = row["Kunyomi"]?.trim() || "";
+    const significado = row["Significado"]?.trim() || "";
+    const componentesRaw = row["Componentes Reales (Completos)"] || "";
+    const kyujitai = row["Kyujitai (Kanji Antiguo)"]?.trim() || "";
+    const etimologia = row["Etimología"]?.trim() || "";
 
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
 
-    // Wikilinks estándar de Quartz usando '|'
-    const compsLinks = comps.length > 0 
-      ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") 
-      : "Ninguno";
-      
-    const kyujitaiLink = kyujitai 
-      ? `[[kanji/${kyujitai}|${kyujitai}]]` 
-      : "Ninguno";
+    const compsLinks = comps.length > 0 ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") : "Ninguno";
+    const kyujitaiLink = kyujitai ? `[[kanji/${kyujitai}|${kyujitai}]]` : "None";
 
     const md = `---
-title: "${escaparYaml(kanji)}"
+title: "${kanji}"
 tipo: kanji
-onyomi: "${escaparYaml(onyomi)}"
-kunyomi: "${escaparYaml(kunyomi)}"
+onyomi: "${onyomi}"
+kunyomi: "${kunyomi}"
 tags:
   - kanji
 ---
@@ -129,24 +103,23 @@ ${etimologia || "Sin datos registrados."}
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
   });
 
-  // Crear notas para cada componente registrado
+  // Notas individuales de componentes válidos
   const listaComponentes = Array.from(componentesGlobales);
   listaComponentes.forEach((comp) => {
     const md = `---
-title: "${escaparYaml(comp)}"
+title: "${comp}"
 tipo: componente
 tags:
   - radical
 ---
-
 # Componente: ${comp}
 
-Revisa los backlinks o el grafo para ver los kanjis asociados a este componente.
+Revisa los backlinks para ver kanjis con este componente.
 `;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
   });
 
-  // --- SECCIÓN 2: PROCESAR VOCABULARIO ---
+  // 2. Descargar y procesar Vocab TEST
   console.log("Descargando Vocab TEST...");
   const resVocab = await fetch(URL_VOCAB);
   const textVocab = await resVocab.text();
@@ -155,22 +128,20 @@ Revisa los backlinks o el grafo para ver los kanjis asociados a este componente.
   const listaVocab = [];
 
   vocabRecords.forEach((row) => {
-    const palabra = limpiarTexto(row["日本語"]);
+    const palabra = row["日本語"]?.trim();
     if (!palabra) return;
 
-    const kana = limpiarTexto(row["かな"]);
-    const en = limpiarTexto(row["English"]);
-    const es = limpiarTexto(row["Español"]);
-    const jlpt = limpiarTexto(row["JLPT"]) || "Sin nivel JLPT";
+    const kana = row["かな"]?.trim() || "";
+    const en = row["English"]?.trim() || "";
+    const es = row["Español"]?.trim() || "";
+    const jlpt = row["JLPT"]?.trim() || "Sin nivel JLPT";
 
     const kanjis = extraerKanjis(palabra);
-    const kanjiLinks = kanjis.length > 0 
-      ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") 
-      : "Kana puro";
+    const kanjiLinks = kanjis.length > 0 ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") : "Kana puro";
 
     const md = `---
-title: "${escaparYaml(palabra)}"
-kana: "${escaparYaml(kana)}"
+title: "${palabra}"
+kana: "${kana}"
 tipo: vocabulario
 tags:
   - vocabulario
@@ -190,11 +161,10 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // --- SECCIÓN 3: GENERAR ÍNDICES (INDEX.MD) ---
+  // 3. Crear índices con Wikilinks nativos limpios
   const indexKanjiMd = `---
 title: "Kanji"
 ---
-
 # Índice de Kanjis
 
 Total registrados: ${listaKanjis.length}
@@ -206,7 +176,6 @@ ${listaKanjis.map((k) => `- [[kanji/${k}\vert{}${k}]]`).join("\n")}
   const indexVocabMd = `---
 title: "Vocabulario"
 ---
-
 # Índice de Vocabulario
 
 Total registrados: ${listaVocab.length}
@@ -218,7 +187,6 @@ ${listaVocab.map((v) => `- [[vocab/${v.safeName}\vert{}${v.palabra}]]`).join("\n
   const indexCompMd = `---
 title: "Componentes"
 ---
-
 # Índice de Componentes
 
 Total registrados: ${listaComponentes.length}
@@ -227,14 +195,14 @@ ${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
-  // --- SECCIÓN 4: PORTADA PRINCIPAL ---
+  // 4. Portada principal
   const indexMd = `---
 title: "Inicio"
 ---
 
 # Jardín Digital de Kanji y Vocabulario
 
-Base de datos interconectada desde Google Sheets.
+Base de datos viva interconectada a partir de Google Sheets.
 
 - [[kanji/index|Explorar Kanjis]]
 - [[vocab/index|Explorar Vocabulario]]
@@ -242,7 +210,7 @@ Base de datos interconectada desde Google Sheets.
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
-  console.log("¡Compilación de notas e índices finalizada con éxito!");
+  console.log("¡Notas e índices generados con éxito!");
 }
 
 main();
