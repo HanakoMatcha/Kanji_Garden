@@ -17,6 +17,23 @@ const CONTENT_DIR = "./content";
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
+// Limpieza de caracteres de control y caracteres especiales no deseados
+function limpiarTexto(cadena) {
+  if (!cadena) return "";
+  return String(cadena)
+    .replace(/\\?vert\{\}/g, "|")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    .trim();
+}
+
+// Escapa caracteres para el frontmatter YAML
+function escaparYaml(cadena) {
+  if (!cadena) return "";
+  return limpiarTexto(cadena)
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"');
+}
+
 function escribirSiCambio(ruta, contenidoNuevo) {
   if (fs.existsSync(ruta)) {
     const contenidoViejo = fs.readFileSync(ruta, "utf8");
@@ -46,7 +63,7 @@ async function main() {
     fs.writeFileSync(configPath, config, "utf8");
   }
 
-  // 1. Descargar y procesar BaseKanji TEST
+  // --- 1. PROCESAR KANJIS ---
   console.log("Descargando BaseKanji TEST...");
   const resKanji = await fetch(URL_KANJI);
   const textKanji = await resKanji.text();
@@ -56,29 +73,35 @@ async function main() {
   const listaKanjis = [];
 
   kanjiRecords.forEach((row) => {
-    const kanji = row["Kanji"]?.trim();
+    const kanji = limpiarTexto(row["Kanji"]);
     if (!kanji) return;
 
     listaKanjis.push(kanji);
 
-    const onyomi = row["Onyomi"]?.trim() || "";
-    const kunyomi = row["Kunyomi"]?.trim() || "";
-    const significado = row["Significado"]?.trim() || "";
-    const componentesRaw = row["Componentes Reales (Completos)"] || "";
-    const kyujitai = row["Kyujitai (Kanji Antiguo)"]?.trim() || "";
-    const etimologia = row["Etimología"]?.trim() || "";
+    const onyomi = limpiarTexto(row["Onyomi"]);
+    const kunyomi = limpiarTexto(row["Kunyomi"]);
+    const significado = limpiarTexto(row["Significado"]);
+    const componentesRaw = limpiarTexto(row["Componentes Reales (Completos)"]);
+    const kyujitai = limpiarTexto(row["Kyujitai (Kanji Antiguo)"]);
+    const etimologia = limpiarTexto(row["Etimología"]);
 
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
 
-    const compsLinks = comps.length > 0 ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") : "Ninguno";
-    const kyujitaiLink = kyujitai ? `[[kanji/${kyujitai}|${kyujitai}]]` : "None";
+    // Enlace directo al componente
+    const compsLinks = comps.length > 0 
+      ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") 
+      : "Ninguno";
+      
+    const kyujitaiLink = kyujitai 
+      ? `[[kanji/${kyujitai}|${kyujitai}]]` 
+      : "Ninguno";
 
     const md = `---
-title: "${kanji}"
+title: "${escaparYaml(kanji)}"
 tipo: kanji
-onyomi: "${onyomi}"
-kunyomi: "${kunyomi}"
+onyomi: "${escaparYaml(onyomi)}"
+kunyomi: "${escaparYaml(kunyomi)}"
 tags:
   - kanji
 ---
@@ -103,23 +126,24 @@ ${etimologia || "Sin datos registrados."}
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
   });
 
-  // Notas individuales de componentes válidos
+  // Crear notas individuales para componentes
   const listaComponentes = Array.from(componentesGlobales);
   listaComponentes.forEach((comp) => {
     const md = `---
-title: "${comp}"
+title: "${escaparYaml(comp)}"
 tipo: componente
 tags:
   - radical
 ---
+
 # Componente: ${comp}
 
-Revisa los backlinks para ver kanjis con este componente.
+Revisa los enlaces inversos (backlinks) para ver kanjis con este componente.
 `;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
   });
 
-  // 2. Descargar y procesar Vocab TEST
+  // --- 2. PROCESAR VOCABULARIO ---
   console.log("Descargando Vocab TEST...");
   const resVocab = await fetch(URL_VOCAB);
   const textVocab = await resVocab.text();
@@ -128,20 +152,22 @@ Revisa los backlinks para ver kanjis con este componente.
   const listaVocab = [];
 
   vocabRecords.forEach((row) => {
-    const palabra = row["日本語"]?.trim();
+    const palabra = limpiarTexto(row["日本語"]);
     if (!palabra) return;
 
-    const kana = row["かな"]?.trim() || "";
-    const en = row["English"]?.trim() || "";
-    const es = row["Español"]?.trim() || "";
-    const jlpt = row["JLPT"]?.trim() || "Sin nivel JLPT";
+    const kana = limpiarTexto(row["かな"]);
+    const en = limpiarTexto(row["English"]);
+    const es = limpiarTexto(row["Español"]);
+    const jlpt = limpiarTexto(row["JLPT"]) || "Sin nivel JLPT";
 
     const kanjis = extraerKanjis(palabra);
-    const kanjiLinks = kanjis.length > 0 ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") : "Kana puro";
+    const kanjiLinks = kanjis.length > 0 
+      ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") 
+      : "Kana puro";
 
     const md = `---
-title: "${palabra}"
-kana: "${kana}"
+title: "${escaparYaml(palabra)}"
+kana: "${escaparYaml(kana)}"
 tipo: vocabulario
 tags:
   - vocabulario
@@ -161,10 +187,11 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Crear índices con Wikilinks nativos limpios
+  // --- 3. CREAR ÍNDICES (INDEX.MD) ---
   const indexKanjiMd = `---
-title: "Kanji"
+title: "Kanjis"
 ---
+
 # Índice de Kanjis
 
 Total registrados: ${listaKanjis.length}
@@ -176,6 +203,7 @@ ${listaKanjis.map((k) => `- [[kanji/${k}\vert{}${k}]]`).join("\n")}
   const indexVocabMd = `---
 title: "Vocabulario"
 ---
+
 # Índice de Vocabulario
 
 Total registrados: ${listaVocab.length}
@@ -187,6 +215,7 @@ ${listaVocab.map((v) => `- [[vocab/${v.safeName}\vert{}${v.palabra}]]`).join("\n
   const indexCompMd = `---
 title: "Componentes"
 ---
+
 # Índice de Componentes
 
 Total registrados: ${listaComponentes.length}
@@ -195,7 +224,7 @@ ${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
-  // 4. Portada principal
+  // --- 4. PORTADA PRINCIPAL ---
   const indexMd = `---
 title: "Inicio"
 ---
