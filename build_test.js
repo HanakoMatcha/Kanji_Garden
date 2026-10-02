@@ -11,15 +11,24 @@ const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 
 const CONTENT_DIR = "./content";
 
-// Crear carpetas de destino
+// Crear carpetas de destino si no existen
 ["vocab", "kanji", "componentes"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
+// Limpia caracteres de control invisibles que puedan corromper el texto
+function limpiarTexto(cadena) {
+  if (!cadena) return "";
+  return cadena.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim();
+}
+
+// Escapa comillas y barras para que no rompan el YAML frontmatter
 function escaparYaml(cadena) {
   if (!cadena) return "";
-  return cadena.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return limpiarTexto(cadena)
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"');
 }
 
 function escribirSiCambio(ruta, contenidoNuevo) {
@@ -61,17 +70,17 @@ async function main() {
   const listaKanjis = [];
 
   kanjiRecords.forEach((row) => {
-    const kanji = row["Kanji"]?.trim();
+    const kanji = limpiarTexto(row["Kanji"]);
     if (!kanji) return;
 
     listaKanjis.push(kanji);
 
-    const onyomi = row["Onyomi"]?.trim() || "";
-    const kunyomi = row["Kunyomi"]?.trim() || "";
-    const significado = row["Significado"]?.trim() || "";
-    const componentesRaw = row["Componentes Reales (Completos)"] || "";
-    const kyujitai = row["Kyujitai (Kanji Antiguo)"]?.trim() || "";
-    const etimologia = row["Etimología"]?.trim() || "";
+    const onyomi = limpiarTexto(row["Onyomi"]);
+    const kunyomi = limpiarTexto(row["Kunyomi"]);
+    const significado = limpiarTexto(row["Significado"]);
+    const componentesRaw = limpiarTexto(row["Componentes Reales (Completos)"]);
+    const kyujitai = limpiarTexto(row["Kyujitai (Kanji Antiguo)"]);
+    const etimologia = limpiarTexto(row["Etimología"]);
 
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
@@ -79,7 +88,10 @@ async function main() {
     const compsLinks = comps.length > 0 
       ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") 
       : "Ninguno";
-    const kyujitaiLink = kyujitai ? `[[kanji/${kyujitai}|${kyujitai}]]` : "None";
+      
+    const kyujitaiLink = kyujitai 
+      ? `[[kanji/${kyujitai}|${kyujitai}]]` 
+      : "Ninguno";
 
     const md = `---
 title: "${escaparYaml(kanji)}"
@@ -119,9 +131,10 @@ tipo: componente
 tags:
   - radical
 ---
+
 # Componente: ${comp}
 
-Revisa los backlinks para ver kanjis con este componente.
+Revisa los backlinks o el grafo para ver los kanjis que comparten este componente.
 `;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
   });
@@ -135,13 +148,13 @@ Revisa los backlinks para ver kanjis con este componente.
   const listaVocab = [];
 
   vocabRecords.forEach((row) => {
-    const palabra = row["日本語"]?.trim();
+    const palabra = limpiarTexto(row["日本語"]);
     if (!palabra) return;
 
-    const kana = row["かな"]?.trim() || "";
-    const en = row["English"]?.trim() || "";
-    const es = row["Español"]?.trim() || "";
-    const jlpt = row["JLPT"]?.trim() || "Sin nivel JLPT";
+    const kana = limpiarTexto(row["かな"]);
+    const en = limpiarTexto(row["English"]);
+    const es = limpiarTexto(row["Español"]);
+    const jlpt = limpiarTexto(row["JLPT"]) || "Sin nivel JLPT";
 
     const kanjis = extraerKanjis(palabra);
     const kanjiLinks = kanjis.length > 0 
@@ -170,10 +183,11 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Crear índices con Wikilinks compatibles con Quartz
+  // 3. Crear índices con Wikilinks limpios
   const indexKanjiMd = `---
 title: "Kanji"
 ---
+
 # Índice de Kanjis
 
 Total registrados: ${listaKanjis.length}
@@ -185,6 +199,7 @@ ${listaKanjis.map((k) => `- [[kanji/${k}\vert{}${k}]]`).join("\n")}
   const indexVocabMd = `---
 title: "Vocabulario"
 ---
+
 # Índice de Vocabulario
 
 Total registrados: ${listaVocab.length}
@@ -196,6 +211,7 @@ ${listaVocab.map((v) => `- [[vocab/${v.safeName}\vert{}${v.palabra}]]`).join("\n
   const indexCompMd = `---
 title: "Componentes"
 ---
+
 # Índice de Componentes
 
 Total registrados: ${listaComponentes.length}
