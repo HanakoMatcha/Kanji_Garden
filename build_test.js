@@ -157,22 +157,20 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Crear índices para cada carpeta
+  // 3. Crear índices explícitos para que GitHub Pages genere los index.html de cada carpeta
   const indexKanjiMd = `---
-title: "Kanjis"
-enableToc: false
+title: Kanjis
 ---
 # Índice de Kanjis
 
 Total registrados: ${listaKanjis.length}
 
-${listaKanjis.map((k) => `- [${k}](./${encodeURIComponent(k)})`).join("\n")}
+${listaKanjis.map((k) => `- [[kanji/${k}\vert{}${k}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
 
   const indexVocabMd = `---
-title: "Vocabulario"
-enableToc: false
+title: Vocabulario
 ---
 # Índice de Vocabulario
 
@@ -180,28 +178,26 @@ Total registrados: ${listaVocab.length}
 
 ${listaVocab.map((v) => {
   const safe = v.replace(/[/\\?%*:|"<>]/g, "_");
-  return `- [${v}](./${encodeURIComponent(safe)})`;
+  return `- [[vocab/${safe}\vert{}${v}]]`;
 }).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
 
   const indexCompMd = `---
-title: "Componentes"
-enableToc: false
+title: Componentes
 ---
 # Índice de Componentes
 
 Total registrados: ${listaComponentes.length}
 
-${listaComponentes.map((c) => `- [${c}](./${encodeURIComponent(c)})`).join("\n")}
+${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
-  // 4. Portada
+  // 4. Portada principal
   const indexMd = `---
-title: "Jardín Léxico y Kanji"
+title: Jardín Léxico y Kanji
 ---
-
 # Jardín Digital de Kanji y Vocabulario
 
 Base de datos viva interconectada a partir de Google Sheets.
@@ -211,8 +207,5 @@ Base de datos viva interconectada a partir de Google Sheets.
 - [[componentes/index|Explorar Componentes y Radicales]]
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
-
-  console.log("¡Notas e índices generados exitosamente!");
-}
 
 main();
