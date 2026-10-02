@@ -22,17 +22,19 @@ jobs:
         with:
           node-version: 22
 
-      - name: Clonar motor de Quartz si no existe
+      - name: Clonar motor de Quartz si falta package.json
         run: |
-          if [ ! -f "quartz.config.ts" ]; then
+          if [ ! -f "package.json" ]; then
+            echo "package.json no detectado. Obteniendo motor de Quartz..."
             git clone --depth 1 https://github.com/jackyzha0/quartz.git quartz-engine
-            cp -rn quartz-engine/* .
+            shopt -s dotglob
+            cp -r quartz-engine/* .
             rm -rf quartz-engine
           fi
 
-      - name: Instalar dependencias
+      - name: Instalar dependencias del proyecto
         run: |
-          npm install
+          npm ci || npm install
           npm install csv-parse
 
       - name: Limpiar contenido previo para modo test
