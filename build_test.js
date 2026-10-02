@@ -2,21 +2,17 @@ import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
 
-// URLs públicas en formato CSV de tus pestañas TEST
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=654834278&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=1745742637&single=true&output=csv";
 
-// RUTA DE GITHUB (sin https:// ni barra final)
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 const CONTENT_DIR = "./content";
 
-// Crear carpetas de destino
 ["vocab", "kanji", "componentes"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
-// Función para no tocar archivos idénticos y mantener la caché
 function escribirSiCambio(ruta, contenidoNuevo) {
   if (fs.existsSync(ruta)) {
     const contenidoViejo = fs.readFileSync(ruta, "utf8");
@@ -32,23 +28,21 @@ function extraerKanjis(texto) {
 }
 
 async function main() {
-  // Ajustar baseUrl en quartz.config.ts si existe
   const configPath = "./quartz.config.ts";
   if (fs.existsSync(configPath)) {
-    console.log("Configurando baseUrl en quartz.config.ts...");
     let config = fs.readFileSync(configPath, "utf8");
     config = config.replace(/baseUrl:\s*"[^"]*"/, `baseUrl: "${MI_BASE_URL}"`);
     fs.writeFileSync(configPath, config, "utf8");
   }
 
-  // 1. Descargar y procesar BaseKanji TEST
+  // 1. Descargar y procesar BaseKanji
   console.log("Descargando BaseKanji TEST...");
   const resKanji = await fetch(URL_KANJI);
   const textKanji = await resKanji.text();
   const kanjiRecords = parse(textKanji, { columns: true, skip_empty_lines: true });
 
-  const componentesGlobales = new Set();
   const listaKanjis = [];
+  const componentesGlobales = new Set();
 
   kanjiRecords.forEach((row) => {
     const kanji = row["Kanji"]?.trim();
@@ -66,14 +60,14 @@ async function main() {
     const comps = Array.from(componentesRaw).filter((c) => c !== " " && c !== " ");
     comps.forEach((c) => componentesGlobales.add(c));
 
-    const compsLinks = comps.length > 0 ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") : "Ninguno";
+    const compsLinks = comps.length > 0 
+      ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") 
+      : "Ninguno";
+      
     const kyujitaiLink = kyujitai ? `[[kanji/${kyujitai}|${kyujitai}]]` : "None";
 
     const md = `---
 title: "${kanji}"
-tipo: kanji
-onyomi: "${onyomi}"
-kunyomi: "${kunyomi}"
 tags:
   - kanji
 ---
@@ -98,23 +92,23 @@ ${etimologia || "Sin datos registrados."}
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
   });
 
-  // Notas de componentes
+  // 2. Componentes
   const listaComponentes = [];
   componentesGlobales.forEach((comp) => {
     listaComponentes.push(comp);
     const md = `---
 title: "${comp}"
-tipo: componente
 tags:
-  - radical
+  - componente
 ---
 # Componente: ${comp}
+
 Revisa los backlinks para ver kanjis con este componente.
 `;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
   });
 
-  // 2. Descargar y procesar Vocab TEST
+  // 3. Vocabulario
   console.log("Descargando Vocab TEST...");
   const resVocab = await fetch(URL_VOCAB);
   const textVocab = await resVocab.text();
@@ -134,12 +128,12 @@ Revisa los backlinks para ver kanjis con este componente.
     const jlpt = row["JLPT"]?.trim() || "Sin nivel JLPT";
 
     const kanjis = extraerKanjis(palabra);
-    const kanjiLinks = kanjis.length > 0 ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") : "Kana puro";
+    const kanjiLinks = kanjis.length > 0 
+      ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") 
+      : "Kana puro";
 
     const md = `---
 title: "${palabra}"
-kana: "${kana}"
-tipo: vocabulario
 tags:
   - vocabulario
 ---
@@ -157,7 +151,7 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Crear índices explícitos para que GitHub Pages genere los index.html de cada carpeta
+  // 4. Índices para cada subcarpeta
   const indexKanjiMd = `---
 title: Kanjis
 ---
@@ -194,7 +188,7 @@ ${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
-  // 4. Portada principal
+  // 5. Portada principal
   const indexMd = `---
 title: Jardín Léxico y Kanji
 ---
@@ -207,5 +201,8 @@ Base de datos viva interconectada a partir de Google Sheets.
 - [[componentes/index|Explorar Componentes y Radicales]]
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
+
+  console.log("¡Notas e índices generados correctamente!");
+}
 
 main();
