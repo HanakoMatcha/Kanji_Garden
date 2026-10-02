@@ -17,13 +17,16 @@ const CONTENT_DIR = "./content";
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
-// Limpia caracteres de control invisibles que puedan corromper el texto
+// 1. Limpieza de caracteres de control, saltos extraños y artefactos de LaTeX
 function limpiarTexto(cadena) {
   if (!cadena) return "";
-  return cadena.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").trim();
+  return String(cadena)
+    .replace(/\\?vert\{\}/g, "|")                  // Elimina residuos \vert{} o vert{}
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // Elimina bytes de control invisibles (\v, etc.)
+    .trim();
 }
 
-// Escapa comillas y barras para que no rompan el YAML frontmatter
+// 2. Escapa comillas dobles para no romper el frontmatter YAML
 function escaparYaml(cadena) {
   if (!cadena) return "";
   return limpiarTexto(cadena)
@@ -31,6 +34,7 @@ function escaparYaml(cadena) {
     .replace(/"/g, '\\"');
 }
 
+// 3. Escribe únicamente si el contenido ha cambiado para no sobrecargar timestamps
 function escribirSiCambio(ruta, contenidoNuevo) {
   if (fs.existsSync(ruta)) {
     const contenidoViejo = fs.readFileSync(ruta, "utf8");
@@ -39,12 +43,14 @@ function escribirSiCambio(ruta, contenidoNuevo) {
   fs.writeFileSync(ruta, contenidoNuevo, "utf8");
 }
 
+// 4. Extracción de kanjis mediante Unicode Regex
 function extraerKanjis(texto) {
   if (!texto) return [];
   const regex = /[\u4E00-\u9FAF\u3400-\u4DBF\u{20000}-\u{2A6DF}]/gu;
   return Array.from(new Set(texto.match(regex) || []));
 }
 
+// 5. Extracción de radicales y componentes de caracteres
 function filtrarComponentesValidos(texto) {
   if (!texto) return [];
   const regex = /[\u2E80-\u2FD5\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u{20000}-\u{2EBEF}]/gu;
@@ -60,7 +66,7 @@ async function main() {
     fs.writeFileSync(configPath, config, "utf8");
   }
 
-  // 1. Descargar y procesar BaseKanji TEST
+  // --- SECCIÓN 1: PROCESAR KANJIS ---
   console.log("Descargando BaseKanji TEST...");
   const resKanji = await fetch(URL_KANJI);
   const textKanji = await resKanji.text();
@@ -85,6 +91,7 @@ async function main() {
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
 
+    // Wikilinks estándar de Quartz usando '|'
     const compsLinks = comps.length > 0 
       ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") 
       : "Ninguno";
@@ -122,7 +129,7 @@ ${etimologia || "Sin datos registrados."}
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
   });
 
-  // Notas individuales de componentes válidos
+  // Crear notas para cada componente registrado
   const listaComponentes = Array.from(componentesGlobales);
   listaComponentes.forEach((comp) => {
     const md = `---
@@ -134,12 +141,12 @@ tags:
 
 # Componente: ${comp}
 
-Revisa los backlinks o el grafo para ver los kanjis que comparten este componente.
+Revisa los backlinks o el grafo para ver los kanjis asociados a este componente.
 `;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
   });
 
-  // 2. Descargar y procesar Vocab TEST
+  // --- SECCIÓN 2: PROCESAR VOCABULARIO ---
   console.log("Descargando Vocab TEST...");
   const resVocab = await fetch(URL_VOCAB);
   const textVocab = await resVocab.text();
@@ -183,7 +190,7 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Crear índices con Wikilinks limpios
+  // --- SECCIÓN 3: GENERAR ÍNDICES (INDEX.MD) ---
   const indexKanjiMd = `---
 title: "Kanji"
 ---
@@ -220,14 +227,14 @@ ${listaComponentes.map((c) => `- [[componentes/${c}\vert{}${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
-  // 4. Portada principal
+  // --- SECCIÓN 4: PORTADA PRINCIPAL ---
   const indexMd = `---
 title: "Inicio"
 ---
 
 # Jardín Digital de Kanji y Vocabulario
 
-Base de datos viva interconectada a partir de Google Sheets.
+Base de datos interconectada desde Google Sheets.
 
 - [[kanji/index|Explorar Kanjis]]
 - [[vocab/index|Explorar Vocabulario]]
@@ -235,7 +242,7 @@ Base de datos viva interconectada a partir de Google Sheets.
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
-  console.log("¡Notas e índices generados con éxito!");
+  console.log("¡Compilación de notas e índices finalizada con éxito!");
 }
 
 main();
