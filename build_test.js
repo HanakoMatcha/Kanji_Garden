@@ -161,7 +161,8 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Índices con título explícito de carpeta
+
+  // 3. Crear índices con enlaces Markdown directos
   const indexKanjiMd = `---
 title: "Kanji"
 ---
