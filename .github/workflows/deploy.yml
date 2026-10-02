@@ -24,35 +24,22 @@ jobs:
 
       - name: Clonar motor de Quartz si no existe
         run: |
-          git clone --depth 1 https://github.com/jackyzha0/quartz.git quartz-engine
-          cp -rn quartz-engine/* .
-          rm -rf quartz-engine
-
-      - name: Caché de dependencias npm
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          if [ ! -f "quartz.config.ts" ]; then
+            git clone --depth 1 https://github.com/jackyzha0/quartz.git quartz-engine
+            cp -rn quartz-engine/* .
+            rm -rf quartz-engine
+          fi
 
       - name: Instalar dependencias
         run: |
           npm install
           npm install csv-parse
 
-      - name: Caché de Quartz (Build & AST)
-        uses: actions/cache@v4
-        with:
-          path: |
-            .quartz-cache
-            public
-          key: ${{ runner.os }}-quartz-${{ github.run_id }}
-          restore-keys: |
-            ${{ runner.os }}-quartz-
-
       - name: Limpiar contenido previo para modo test
-        run: rm -rf content/*
+        run: |
+          rm -rf content/*
+          rm -rf public
+          rm -rf .quartz-cache
 
       - name: Descargar de Sheets y generar Markdown
         run: node build_test.js
