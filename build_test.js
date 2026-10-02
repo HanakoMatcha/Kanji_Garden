@@ -17,13 +17,10 @@ const CONTENT_DIR = "./content";
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
-// Función para no tocar archivos idénticos y mantener la caché
 function escribirSiCambio(ruta, contenidoNuevo) {
   if (fs.existsSync(ruta)) {
     const contenidoViejo = fs.readFileSync(ruta, "utf8");
-    if (contenidoViejo === contenidoNuevo) {
-      return;
-    }
+    if (contenidoViejo === contenidoNuevo) return;
   }
   fs.writeFileSync(ruta, contenidoNuevo);
 }
@@ -34,7 +31,6 @@ function extraerKanjis(texto) {
   return Array.from(new Set(texto.match(regex) || []));
 }
 
-// Filtro estricto: descarta saltos de línea, espacios invisibles y caracteres de control
 function filtrarComponentesValidos(texto) {
   if (!texto) return [];
   const regex = /[\u2E80-\u2FD5\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u{20000}-\u{2EBEF}]/gu;
@@ -42,7 +38,6 @@ function filtrarComponentesValidos(texto) {
 }
 
 async function main() {
-  // Ajustar baseUrl en quartz.config.ts automáticamente
   const configPath = "./quartz.config.ts";
   if (fs.existsSync(configPath)) {
     console.log("Configurando baseUrl en quartz.config.ts...");
@@ -166,9 +161,9 @@ tags:
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Índices limpios con rutas relativas
+  // 3. Índices con título explícito de carpeta
   const indexKanjiMd = `---
-title: "Índice de Kanjis"
+title: "Kanji"
 ---
 # Índice de Kanjis
 
@@ -179,7 +174,7 @@ ${listaKanjis.map((k) => `- [${k}](./${encodeURIComponent(k)})`).join("\n")}
   escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
 
   const indexVocabMd = `---
-title: "Índice de Vocabulario"
+title: "Vocabulario"
 ---
 # Índice de Vocabulario
 
@@ -190,7 +185,7 @@ ${listaVocab.map((v) => `- [${v.palabra}](./${encodeURIComponent(v.safeName)})`)
   escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
 
   const indexCompMd = `---
-title: "Índice de Componentes"
+title: "Componentes"
 ---
 # Índice de Componentes
 
@@ -202,7 +197,7 @@ ${listaComponentes.map((c) => `- [${c}](./${encodeURIComponent(c)})`).join("\n")
 
   // 4. Portada principal
   const indexMd = `---
-title: "Jardín Léxico y Kanji"
+title: "Inicio"
 ---
 
 # Jardín Digital de Kanji y Vocabulario
