@@ -62,6 +62,10 @@ jobs:
           grep -n -i "layout\|position\|explorer\|graph\|backlinks\|search" quartz.config.default.yaml || true
           echo "--- quartz.layout.ts completo ---"
           cat quartz.layout.ts
+
+      - name: Ver bloque de plugins y layout
+        run: sed -n '125,290p' quartz.config.default.yaml
+    
       - name: Compilar Quartz
         run: npx quartz build
 
