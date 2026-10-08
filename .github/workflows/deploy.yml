@@ -45,8 +45,8 @@ jobs:
 
       - name: Descargar de Sheets y generar Markdown
         run: node build_test.js
-  
-           - name: Localizar código del explorador
+
+      - name: Localizar código del explorador
         run: |
           echo "--- Archivos con nav-file-title ---"
           grep -rIl "nav-file-title" . --exclude-dir=.git --exclude-dir=public 2>/dev/null | head -20
@@ -57,6 +57,13 @@ jobs:
           echo "--- Versión ---"
           grep '"version"' package.json
           ls quartz.config.* quartz.layout.* 2>/dev/null
+
+      - name: Ver código del enlace del explorador
+        run: |
+          f=$(grep -rIl "nav-file-title" . --exclude-dir=.git --exclude-dir=public 2>/dev/null | head -1)
+          echo "Archivo: $f"
+          grep -n "href" "$f" | head -20
+
       - name: Compilar Quartz
         run: npx quartz build
 
