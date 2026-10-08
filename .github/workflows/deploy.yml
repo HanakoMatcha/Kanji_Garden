@@ -55,7 +55,10 @@ jobs:
               grep -n "baseUrl" "$f" || true
             fi
           done
-
+      
+      - name: Ver colores del YAML
+        run: grep -n -i -A 25 "colors" quartz.config.default.yaml || true
+        
       - name: Compilar Quartz
         run: npx quartz build
 
