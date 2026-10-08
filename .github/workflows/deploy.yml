@@ -49,5 +49,24 @@ jobs:
       - name: Ver código del enlace del explorador
         run: |
           f=node_modules/@quartz-community/explorer/dist/components/index.js
-          echo "--- Líneas con nav-file-title ---"
-          grep -n -o ".\{0,200\}nav-file-title.\{0,200\}" "$f" | head -10 || true
+          echo "--- Asignaciones de href ---"
+          grep -n -o ".\{0,250\}\.href.\{0,250\}" "$f" | head -15 || true
+          echo "--- resolveRelative / slug ---"
+          grep -n -o ".\{0,200\}resolveRelative.\{0,200\}" "$f" | head -10 || true
+          echo "--- Rutas con barra inicial ---"
+          grep -n -o ".\{0,150\}\"/\" *+.\{0,150\}" "$f" | head -10 || true
+          echo "--- Versión del plugin ---"
+          grep '"version"' node_modules/@quartz-community/explorer/package.json || true
+          echo "--- Config YAML ---"
+          grep -n -i "baseUrl\|enableSPA" quartz.config.default.yaml || true
+          ls quartz.config.* || true
+
+      - name: Compilar Quartz
+        run: npx quartz build
+
+      - name: Publicar en GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages
