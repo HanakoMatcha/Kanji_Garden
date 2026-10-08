@@ -46,10 +46,17 @@ jobs:
       - name: Descargar de Sheets y generar Markdown
         run: node build_test.js
   
-      - name: Localizar código del explorador
+           - name: Localizar código del explorador
         run: |
-          grep -rn "nav-file-title" quartz/ --include=*.ts --include=*.tsx --include=*.js | head -20
-      
+          echo "--- Archivos con nav-file-title ---"
+          grep -rIl "nav-file-title" . --exclude-dir=.git --exclude-dir=public 2>/dev/null | head -20
+          echo "--- Carpetas de plugins ---"
+          ls -a | head -50
+          ls -a .quartz 2>/dev/null
+          ls node_modules/@quartz-community 2>/dev/null
+          echo "--- Versión ---"
+          grep '"version"' package.json
+          ls quartz.config.* quartz.layout.* 2>/dev/null
       - name: Compilar Quartz
         run: npx quartz build
 
