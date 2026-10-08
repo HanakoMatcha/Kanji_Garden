@@ -55,7 +55,13 @@ jobs:
               grep -n "baseUrl" "$f" || true
             fi
           done
-
+          
+      - name: Ver layout
+        run: |
+          echo "--- layout en el YAML ---"
+          grep -n -i "layout\|position\|explorer\|graph\|backlinks\|search" quartz.config.default.yaml || true
+          echo "--- quartz.layout.ts completo ---"
+          cat quartz.layout.ts
       - name: Compilar Quartz
         run: npx quartz build
 
