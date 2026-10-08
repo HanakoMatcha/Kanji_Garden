@@ -91,6 +91,13 @@ jobs:
           setc "$D" highlight 'rgba(255, 79, 216, 0.15)'
           setc "$D" textHighlight '"#5dff9a55"'
 
+      - name: Mostrar graph en páginas de carpeta y etiquetas
+        run: |
+          f=quartz.config.default.yaml
+          sed -i '/^    folder:/,/^    canvas:/ { /^      positions:/d; /^        right: \[\]/d }' "$f"
+          echo "--- bloque layout resultante ---"
+          sed -n '/^layout:/,$p' "$f"
+
       - name: Ver qué cambió en el YAML
         run: git diff quartz.config.default.yaml || true
 
