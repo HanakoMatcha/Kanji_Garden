@@ -55,17 +55,39 @@ jobs:
               grep -n "baseUrl" "$f" || true
             fi
           done
-          
-      - name: Ver layout
-        run: |
-          echo "--- layout en el YAML ---"
-          grep -n -i "layout\|position\|explorer\|graph\|backlinks\|search" quartz.config.default.yaml || true
-          echo "--- quartz.layout.ts completo ---"
-          cat quartz.layout.ts
 
-      - name: Ver bloque de plugins y layout
-        run: sed -n '125,290p' quartz.config.default.yaml
-    
+      - name: Fijar paleta de colores en el YAML
+        run: |
+          f=quartz.config.default.yaml
+          setc() { sed -i -E "$1 s|^([[:space:]]*)$2:.*|\1$2: $3|" "$f"; }
+
+          # Modo claro: matcha y rosa pastel
+          L='/^[[:space:]]*lightMode:/,/^[[:space:]]*darkMode:/'
+          setc "$L" light '"#fdf8f6"'
+          setc "$L" lightgray '"#f3dfe3"'
+          setc "$L" gray '"#b7c4a8"'
+          setc "$L" darkgray '"#5f6b55"'
+          setc "$L" dark '"#3b4636"'
+          setc "$L" secondary '"#6f9560"'
+          setc "$L" tertiary '"#f2a7c3"'
+          setc "$L" highlight 'rgba(242, 167, 195, 0.2)'
+          setc "$L" textHighlight '"#f9d5e588"'
+
+          # Modo oscuro: negro y neones
+          D='/^[[:space:]]*darkMode:/,/^plugins:/'
+          setc "$D" light '"#0a0a0c"'
+          setc "$D" lightgray '"#222228"'
+          setc "$D" gray '"#5a5a66"'
+          setc "$D" darkgray '"#c9c9d6"'
+          setc "$D" dark '"#f2f2f7"'
+          setc "$D" secondary '"#5dff9a"'
+          setc "$D" tertiary '"#ff4fd8"'
+          setc "$D" highlight 'rgba(255, 79, 216, 0.15)'
+          setc "$D" textHighlight '"#5dff9a55"'
+
+      - name: Ver qué cambió en el YAML
+        run: git diff quartz.config.default.yaml || true
+
       - name: Compilar Quartz
         run: npx quartz build
 
