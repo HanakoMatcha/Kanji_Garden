@@ -20,29 +20,30 @@ const config: QuartzConfig = {
         body: "Source Sans Pro",
         code: "IBM Plex Mono",
       },
-      colors: {
+         colors: {
         lightMode: {
-          light: "#faf8f8",
-          lightgray: "#e5e5e5",
-          gray: "#b8b8b8",
-          darkgray: "#4e4e4e",
-          dark: "#2b2b2b",
-          secondary: "#284b63",
-          tertiary: "#84a59d",
-          highlight: "rgba(143, 159, 169, 0.15)",
-          textHighlight: "#fff23688",
+          light: "#f7f5ee",       // fondo
+          lightgray: "#e3e6d8",   // bordes
+          gray: "#a9b39b",        // texto atenuado
+          darkgray: "#4a5a45",    // texto del cuerpo
+          dark: "#2a3328",        // títulos
+          secondary: "#5b7f4f",   // enlaces
+          tertiary: "#9bb585",    // enlaces al pasar el cursor
+          highlight: "rgba(91, 127, 79, 0.15)",
+          textHighlight: "#e8e06088",
         },
         darkMode: {
-          light: "#161618",
-          lightgray: "#393639",
-          gray: "#646464",
-          darkgray: "#d4d4d4",
-          dark: "#ebebec",
-          secondary: "#7b97aa",
-          tertiary: "#84a59d",
-          highlight: "rgba(143, 159, 169, 0.15)",
+          light: "#1a1f18",
+          lightgray: "#2e3629",
+          gray: "#5c6b55",
+          darkgray: "#cdd6c4",
+          dark: "#eef2e8",
+          secondary: "#9bbf8a",
+          tertiary: "#c4d6a8",
+          highlight: "rgba(155, 191, 138, 0.15)",
           textHighlight: "#b3aa0288",
         },
+      },
       },
     },
   },
