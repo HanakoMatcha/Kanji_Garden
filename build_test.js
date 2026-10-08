@@ -25,6 +25,16 @@ function escribirSiCambio(ruta, contenidoNuevo) {
   fs.writeFileSync(ruta, contenidoNuevo);
 }
 
+// Una sola función para nombres de archivo Y enlaces
+function nombreSeguro(s) {
+  return String(s).normalize("NFC").replace(/[\/\\?%*:|"<>#&\s]/g, "_");
+}
+
+// Escapar texto para usarlo dentro de comillas en el frontmatter YAML
+function yamlStr(s) {
+  return String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 function extraerKanjis(texto) {
   if (!texto) return [];
   const regex = /[\u4E00-\u9FAF\u3400-\u4DBF\u{20000}-\u{2A6DF}]/gu;
@@ -71,14 +81,17 @@ async function main() {
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
 
-    const compsLinks = comps.length > 0 ? comps.map((c) => `[[componentes/${c}|${c}]]`).join(", ") : "Ninguno";
-    const kyujitaiLink = kyujitai ? `[[kanji/${kyujitai}|${kyujitai}]]` : "None";
+    const compsLinks =
+      comps.length > 0
+        ? comps.map((c) => `[[componentes/${nombreSeguro(c)}|${c}]]`).join(", ")
+        : "Ninguno";
+    const kyujitaiLink = kyujitai ? `[[kanji/${nombreSeguro(kyujitai)}|${kyujitai}]]` : "None";
 
     const md = `---
-title: "${kanji}"
+title: "${yamlStr(kanji)}"
 tipo: kanji
-onyomi: "${onyomi}"
-kunyomi: "${kunyomi}"
+onyomi: "${yamlStr(onyomi)}"
+kunyomi: "${yamlStr(kunyomi)}"
 tags:
   - kanji
 ---
@@ -100,14 +113,14 @@ tags:
 ## Etimología
 ${etimologia || "Sin datos registrados."}
 `;
-    escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${kanji}.md`), md);
+    escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
   // Notas individuales de componentes válidos
   const listaComponentes = Array.from(componentesGlobales);
   listaComponentes.forEach((comp) => {
     const md = `---
-title: "${comp}"
+title: "${yamlStr(comp)}"
 tipo: componente
 tags:
   - radical
@@ -116,7 +129,7 @@ tags:
 
 Revisa los backlinks para ver kanjis con este componente.
 `;
-    escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${comp}.md`), md);
+    escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
   });
 
   // 2. Descargar y procesar Vocab TEST
@@ -137,11 +150,14 @@ Revisa los backlinks para ver kanjis con este componente.
     const jlpt = row["JLPT"]?.trim() || "Sin nivel JLPT";
 
     const kanjis = extraerKanjis(palabra);
-    const kanjiLinks = kanjis.length > 0 ? kanjis.map((k) => `[[kanji/${k}|${k}]]`).join(", ") : "Kana puro";
+    const kanjiLinks =
+      kanjis.length > 0
+        ? kanjis.map((k) => `[[kanji/${nombreSeguro(k)}|${k}]]`).join(", ")
+        : "Kana puro";
 
     const md = `---
-title: "${palabra}"
-kana: "${kana}"
+title: "${yamlStr(palabra)}"
+kana: "${yamlStr(kana)}"
 tipo: vocabulario
 tags:
   - vocabulario
@@ -156,12 +172,12 @@ tags:
 
 **JLPT:** ${jlpt}
 `;
-    const safeName = palabra.replace(/[/\\?%*:|"<>]/g, "_");
+    const safeName = nombreSeguro(palabra);
     listaVocab.push({ palabra, safeName });
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
   });
 
-  // 3. Índices con título explícito de carpeta
+  // 3. Índices con wikilinks (Quartz resuelve los slugs por su cuenta)
   const indexKanjiMd = `---
 title: "Kanji"
 ---
@@ -169,7 +185,7 @@ title: "Kanji"
 
 Total registrados: ${listaKanjis.length}
 
-${listaKanjis.map((k) => `- [${k}](./${encodeURIComponent(k)})`).join("\n")}
+${listaKanjis.map((k) => `- [[kanji/${nombreSeguro(k)}|${k}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
 
@@ -180,7 +196,7 @@ title: "Vocabulario"
 
 Total registrados: ${listaVocab.length}
 
-${listaVocab.map((v) => `- [${v.palabra}](./${encodeURIComponent(v.safeName)})`).join("\n")}
+${listaVocab.map((v) => `- [[vocab/${v.safeName}|${v.palabra}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
 
@@ -191,7 +207,7 @@ title: "Componentes"
 
 Total registrados: ${listaComponentes.length}
 
-${listaComponentes.map((c) => `- [${c}](./${encodeURIComponent(c)})`).join("\n")}
+${listaComponentes.map((c) => `- [[componentes/${nombreSeguro(c)}|${c}]]`).join("\n")}
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
 
