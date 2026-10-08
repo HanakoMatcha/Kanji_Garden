@@ -46,30 +46,4 @@ jobs:
       - name: Descargar de Sheets y generar Markdown
         run: node build_test.js
 
-      - name: Fijar baseUrl en la configuración YAML
-        run: |
-          for f in quartz.config.yaml quartz.config.yml quartz.config.default.yaml; do
-            if [ -f "$f" ]; then
-              sed -i -E 's|^([[:space:]]*baseUrl:).*|\1 HanakoMatcha.github.io/Kanji_Garden|' "$f"
-              echo "== $f =="
-              grep -n "baseUrl" "$f" || true
-            fi
-          done
-      
-  - name: Ver qué cambió en el YAML
-        run: git diff quartz.config.default.yaml || true
-        
-      - name: Compilar Quartz
-        run: npx quartz build
-
-      - name: Comprobar basepath generado
-        run: |
-          grep -o 'data-basepath="[^"]*"' public/index.html | head -1 || echo "sin data-basepath"
-          grep -o 'data-basepath="[^"]*"' public/kanji/index.html | head -1 || true
-
-      - name: Publicar en GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public
-          publish_branch: gh-pages
+      - name: Fijar
