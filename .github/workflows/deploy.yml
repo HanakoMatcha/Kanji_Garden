@@ -56,30 +56,36 @@ jobs:
             fi
           done
 
+      - name: Fijar título del sitio en el YAML
+        run: |
+          f=quartz.config.default.yaml
+          sed -i -E 's|^([[:space:]]*pageTitle:).*|\1 "Kanji Garden"|' "$f"
+          grep -n -i "title" "$f" | head -10 || true
+
       - name: Fijar paleta de colores en el YAML
         run: |
           f=quartz.config.default.yaml
           setc() { sed -i -E "$1 s|^([[:space:]]*)$2:.*|\1$2: $3|" "$f"; }
 
-          # Modo claro: matcha y rosa pastel
+          # Modo claro: papel de ebook, café oscuro, matcha y rosa pastel
           L='/^[[:space:]]*lightMode:/,/^[[:space:]]*darkMode:/'
-          setc "$L" light '"#fdf8f6"'
-          setc "$L" lightgray '"#f3dfe3"'
-          setc "$L" gray '"#b7c4a8"'
-          setc "$L" darkgray '"#5f6b55"'
-          setc "$L" dark '"#3b4636"'
-          setc "$L" secondary '"#6f9560"'
-          setc "$L" tertiary '"#f2a7c3"'
-          setc "$L" highlight 'rgba(242, 167, 195, 0.2)'
-          setc "$L" textHighlight '"#f9d5e588"'
+          setc "$L" light '"#f4ecd8"'
+          setc "$L" lightgray '"#e4d8bd"'
+          setc "$L" gray '"#b8a98a"'
+          setc "$L" darkgray '"#5c4636"'
+          setc "$L" dark '"#3e2a1e"'
+          setc "$L" secondary '"#6a8f58"'
+          setc "$L" tertiary '"#e993b5"'
+          setc "$L" highlight 'rgba(233, 147, 181, 0.2)'
+          setc "$L" textHighlight '"#f3c9d988"'
 
-          # Modo oscuro: negro y neones
+          # Modo oscuro: púrpura oscuro y neones
           D='/^[[:space:]]*darkMode:/,/^plugins:/'
-          setc "$D" light '"#0a0a0c"'
-          setc "$D" lightgray '"#222228"'
-          setc "$D" gray '"#5a5a66"'
-          setc "$D" darkgray '"#c9c9d6"'
-          setc "$D" dark '"#f2f2f7"'
+          setc "$D" light '"#1b1028"'
+          setc "$D" lightgray '"#2e1c42"'
+          setc "$D" gray '"#6e5a8a"'
+          setc "$D" darkgray '"#d8cfe8"'
+          setc "$D" dark '"#f5f0fb"'
           setc "$D" secondary '"#5dff9a"'
           setc "$D" tertiary '"#ff4fd8"'
           setc "$D" highlight 'rgba(255, 79, 216, 0.15)'
