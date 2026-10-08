@@ -56,7 +56,8 @@ jobs:
             fi
           done
       
-
+  - name: Ver qué cambió en el YAML
+        run: git diff quartz.config.default.yaml || true
         
       - name: Compilar Quartz
         run: npx quartz build
