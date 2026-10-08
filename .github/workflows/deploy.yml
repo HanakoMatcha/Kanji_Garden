@@ -56,34 +56,7 @@ jobs:
             fi
           done
       
-      - name: Fijar paleta de colores en el YAML
-        run: |
-          f=quartz.config.default.yaml
-          setc() { sed -i -E "$1 s|^([[:space:]]*)$2:.*|\1$2: $3|" "$f"; }
 
-          L='/lightMode:/,/darkMode:/'
-          setc "$L" light '"#f7f5ee"'
-          setc "$L" lightgray '"#e3e6d8"'
-          setc "$L" gray '"#a9b39b"'
-          setc "$L" darkgray '"#4a5a45"'
-          setc "$L" dark '"#2a3328"'
-          setc "$L" secondary '"#5b7f4f"'
-          setc "$L" tertiary '"#9bb585"'
-          setc "$L" highlight 'rgba(91, 127, 79, 0.15)'
-          setc "$L" textHighlight '"#e8e06088"'
-
-          D='/darkMode:/,/^plugins:/'
-          setc "$D" light '"#1a1f18"'
-          setc "$D" lightgray '"#2e3629"'
-          setc "$D" gray '"#5c6b55"'
-          setc "$D" darkgray '"#cdd6c4"'
-          setc "$D" dark '"#eef2e8"'
-          setc "$D" secondary '"#9bbf8a"'
-          setc "$D" tertiary '"#c4d6a8"'
-          setc "$D" highlight 'rgba(155, 191, 138, 0.15)'
-          setc "$D" textHighlight '"#b3aa0288"'
-
-          grep -n -A 22 "colors:" "$f"
         
       - name: Compilar Quartz
         run: npx quartz build
