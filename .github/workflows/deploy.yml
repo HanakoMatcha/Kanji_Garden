@@ -46,23 +46,23 @@ jobs:
       - name: Descargar de Sheets y generar Markdown
         run: node build_test.js
 
-      - name: Ver código del enlace del explorador
+      - name: Fijar baseUrl en la configuración YAML
         run: |
-          f=node_modules/@quartz-community/explorer/dist/components/index.js
-          echo "--- Asignaciones de href ---"
-          grep -n -o ".\{0,250\}\.href.\{0,250\}" "$f" | head -15 || true
-          echo "--- resolveRelative / slug ---"
-          grep -n -o ".\{0,200\}resolveRelative.\{0,200\}" "$f" | head -10 || true
-          echo "--- Rutas con barra inicial ---"
-          grep -n -o ".\{0,150\}\"/\" *+.\{0,150\}" "$f" | head -10 || true
-          echo "--- Versión del plugin ---"
-          grep '"version"' node_modules/@quartz-community/explorer/package.json || true
-          echo "--- Config YAML ---"
-          grep -n -i "baseUrl\|enableSPA" quartz.config.default.yaml || true
-          ls quartz.config.* || true
+          for f in quartz.config.yaml quartz.config.yml quartz.config.default.yaml; do
+            if [ -f "$f" ]; then
+              sed -i -E 's|^([[:space:]]*baseUrl:).*|\1 HanakoMatcha.github.io/Kanji_Garden|' "$f"
+              echo "== $f =="
+              grep -n "baseUrl" "$f" || true
+            fi
+          done
 
       - name: Compilar Quartz
         run: npx quartz build
+
+      - name: Comprobar basepath generado
+        run: |
+          grep -o 'data-basepath="[^"]*"' public/index.html | head -1 || echo "sin data-basepath"
+          grep -o 'data-basepath="[^"]*"' public/kanji/index.html | head -1 || true
 
       - name: Publicar en GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
