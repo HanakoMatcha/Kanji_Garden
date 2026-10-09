@@ -61,8 +61,8 @@ function filtrarComponentesValidos(texto) {
 }
 
 // ---------- Imágenes de kanjium ----------
-// código Unicode decimal -> [{ carpeta, archivo }]
-let indiceImagenes = new Map();
+// código Unicode decimal -> [{ carpeta, archivo, ruta }]
+const indiceImagenes = new Map();
 
 async function cargarIndiceImagenes() {
   try {
@@ -250,4 +250,81 @@ ${seccionImagenes(comp)}`;
     const kanjis = extraerKanjis(palabra);
     const kanjiLinks =
       kanjis.length > 0
-        ? kanjis.map((k) => `[[kanji/${nombreSeguro(k)
+        ? kanjis.map((k) => `[[kanji/${nombreSeguro(k)}|${k}]]`).join(", ")
+        : "Kana puro";
+
+    const md = `---
+title: "${yamlStr(palabra)}"
+kana: "${yamlStr(kana)}"
+tipo: vocabulario
+tags:
+  - vocabulario
+---
+
+# ${palabra} (${kana})
+
+> **ES:** ${es || "—"}  
+> **EN:** ${en || "—"}
+
+**Kanjis:** ${kanjiLinks}
+
+**JLPT:** ${jlpt}
+`;
+    const safeName = nombreSeguro(palabra);
+    listaVocab.push({ palabra, safeName });
+    escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
+  });
+
+  // 3. Índices con wikilinks (Quartz resuelve los slugs por su cuenta)
+  const indexKanjiMd = `---
+title: "Kanji"
+---
+# Índice de Kanjis
+
+Total registrados: ${listaKanjis.length}
+
+${listaKanjis.map((k) => `- [[kanji/${nombreSeguro(k)}|${k}]]`).join("\n")}
+`;
+  escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
+
+  const indexVocabMd = `---
+title: "Vocabulario"
+---
+# Índice de Vocabulario
+
+Total registrados: ${listaVocab.length}
+
+${listaVocab.map((v) => `- [[vocab/${v.safeName}|${v.palabra}]]`).join("\n")}
+`;
+  escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
+
+  const indexCompMd = `---
+title: "Componentes"
+---
+# Índice de Componentes
+
+Total registrados: ${listaComponentes.length}
+
+${listaComponentes.map((c) => `- [[componentes/${nombreSeguro(c)}|${c}]]`).join("\n")}
+`;
+  escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
+
+  // 4. Portada principal
+  const indexMd = `---
+title: "Inicio"
+---
+
+# Jardín Digital de Kanji y Vocabulario
+
+Base de datos viva interconectada a partir de Google Sheets.
+
+- [Explorar Kanjis](./kanji/)
+- [Explorar Vocabulario](./vocab/)
+- [Explorar Componentes y Radicales](./componentes/)
+`;
+  escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
+
+  console.log("¡Notas e índices generados con URLs TEST!");
+}
+
+main();
