@@ -9,6 +9,19 @@ const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1
 // RUTA DE GITHUB (sin https:// ni barra final)
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 
+// Repositorio de imágenes (kanjium) servido por jsDelivr
+const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
+const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
+
+const ETIQUETAS_IMG = {
+  origin: "Origen",
+  tensho: "Tenshō (sello pequeño)",
+  gyosho: "Gyōsho (semicursiva)",
+  sousho: "Sōsho (cursiva)",
+  kso_images: "KSO",
+};
+const ORDEN_IMG = ["origin", "tensho", "gyosho", "sousho", "kso_images"];
+
 const CONTENT_DIR = "./content";
 
 // Crear carpetas de destino
@@ -47,6 +60,87 @@ function filtrarComponentesValidos(texto) {
   return Array.from(new Set(texto.match(regex) || []));
 }
 
+// ---------- Imágenes de kanjium ----------
+// código Unicode decimal -> [{ carpeta, archivo }]
+let indiceImagenes = new Map();
+
+async function cargarIndiceImagenes() {
+  try {
+    const headers = {
+      "User-Agent": "kanji-garden-build",
+      Accept: "application/vnd.github+json",
+    };
+    if (process.env.GITHUB_TOKEN) {
+      headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+    }
+    const res = await fetch(
+      `https://api.github.com/repos/${ASSETS_REPO}/git/trees/main?recursive=1`,
+      { headers }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.truncated) {
+      console.warn("AVISO: GitHub devolvió la lista de archivos truncada; faltarán imágenes.");
+    }
+
+    let total = 0;
+    for (const item of data.tree || []) {
+      if (item.type !== "blob") continue;
+      const partes = item.path.split("/");
+      if (partes[0] !== "images" || partes.length < 3) continue;
+
+      const carpeta = partes[1];
+      const archivo = partes[partes.length - 1];
+      const m = archivo.match(/^(.+)\.(png|jpg|jpeg|webp|svg)$/i);
+      if (!m) continue;
+      const stem = m[1];
+
+      // Clave: dígitos iniciales (19978, 19978_1...) o el propio kanji como nombre
+      let clave = null;
+      const num = stem.match(/^(\d+)/);
+      if (num) clave = num[1];
+      else if (Array.from(stem).length === 1) clave = String(stem.codePointAt(0));
+      if (!clave) continue;
+
+      if (!indiceImagenes.has(clave)) indiceImagenes.set(clave, []);
+      indiceImagenes.get(clave).push({ carpeta, archivo, ruta: item.path });
+      total++;
+    }
+    console.log(`Índice de imágenes: ${total} archivos, ${indiceImagenes.size} caracteres.`);
+  } catch (err) {
+    console.warn("No se pudo cargar el índice de imágenes:", err.message);
+  }
+}
+
+function seccionImagenes(caracter) {
+  const lista = indiceImagenes.get(String(caracter.codePointAt(0)));
+  if (!lista || lista.length === 0) return "";
+
+  const porCarpeta = new Map();
+  for (const it of lista) {
+    if (!porCarpeta.has(it.carpeta)) porCarpeta.set(it.carpeta, []);
+    porCarpeta.get(it.carpeta).push(it);
+  }
+
+  const carpetas = Array.from(porCarpeta.keys()).sort((a, b) => {
+    const ia = ORDEN_IMG.indexOf(a);
+    const ib = ORDEN_IMG.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+  });
+
+  let md = "\n## Escritura\n";
+  for (const carpeta of carpetas) {
+    const etiqueta = ETIQUETAS_IMG[carpeta] || carpeta;
+    const items = porCarpeta.get(carpeta).sort((a, b) => a.archivo.localeCompare(b.archivo));
+    const imgs = items.map((it) => {
+      const url = `${ASSETS_CDN}/${it.ruta.split("/").map(encodeURIComponent).join("/")}`;
+      return `![${caracter} ${etiqueta}](${url})`;
+    });
+    md += `\n### ${etiqueta}\n${imgs.join(" ")}\n`;
+  }
+  return md;
+}
+
 async function main() {
   const configPath = "./quartz.config.ts";
   if (fs.existsSync(configPath)) {
@@ -55,6 +149,10 @@ async function main() {
     config = config.replace(/baseUrl:\s*"[^"]*"/, `baseUrl: "${MI_BASE_URL}"`);
     fs.writeFileSync(configPath, config, "utf8");
   }
+
+  // 0. Índice de imágenes disponibles
+  console.log("Cargando índice de imágenes de kanjium...");
+  await cargarIndiceImagenes();
 
   // 1. Descargar y procesar BaseKanji TEST
   console.log("Descargando BaseKanji TEST...");
@@ -112,7 +210,7 @@ tags:
 
 ## Etimología
 ${etimologia || "Sin datos registrados."}
-`;
+${seccionImagenes(kanji)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
@@ -128,7 +226,7 @@ tags:
 # Componente: ${comp}
 
 Revisa los backlinks para ver kanjis con este componente.
-`;
+${seccionImagenes(comp)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
   });
 
@@ -152,81 +250,4 @@ Revisa los backlinks para ver kanjis con este componente.
     const kanjis = extraerKanjis(palabra);
     const kanjiLinks =
       kanjis.length > 0
-        ? kanjis.map((k) => `[[kanji/${nombreSeguro(k)}|${k}]]`).join(", ")
-        : "Kana puro";
-
-    const md = `---
-title: "${yamlStr(palabra)}"
-kana: "${yamlStr(kana)}"
-tipo: vocabulario
-tags:
-  - vocabulario
----
-
-# ${palabra} (${kana})
-
-> **ES:** ${es || "—"}  
-> **EN:** ${en || "—"}
-
-**Kanjis:** ${kanjiLinks}
-
-**JLPT:** ${jlpt}
-`;
-    const safeName = nombreSeguro(palabra);
-    listaVocab.push({ palabra, safeName });
-    escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
-  });
-
-  // 3. Índices con wikilinks (Quartz resuelve los slugs por su cuenta)
-  const indexKanjiMd = `---
-title: "Kanji"
----
-# Índice de Kanjis
-
-Total registrados: ${listaKanjis.length}
-
-${listaKanjis.map((k) => `- [[kanji/${nombreSeguro(k)}|${k}]]`).join("\n")}
-`;
-  escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
-
-  const indexVocabMd = `---
-title: "Vocabulario"
----
-# Índice de Vocabulario
-
-Total registrados: ${listaVocab.length}
-
-${listaVocab.map((v) => `- [[vocab/${v.safeName}|${v.palabra}]]`).join("\n")}
-`;
-  escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
-
-  const indexCompMd = `---
-title: "Componentes"
----
-# Índice de Componentes
-
-Total registrados: ${listaComponentes.length}
-
-${listaComponentes.map((c) => `- [[componentes/${nombreSeguro(c)}|${c}]]`).join("\n")}
-`;
-  escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
-
-  // 4. Portada principal
-  const indexMd = `---
-title: "Inicio"
----
-
-# Jardín Digital de Kanji y Vocabulario
-
-Base de datos viva interconectada a partir de Google Sheets.
-
-- [Explorar Kanjis](./kanji/)
-- [Explorar Vocabulario](./vocab/)
-- [Explorar Componentes y Radicales](./componentes/)
-`;
-  escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
-
-  console.log("¡Notas e índices generados con URLs TEST!");
-}
-
-main();
+        ? kanjis.map((k) => `[[kanji/${nombreSeguro(k)
