@@ -122,15 +122,14 @@ jobs:
             echo "No se encontró favicon.png en la raíz del repositorio"
           fi
 
-      - name: Ver opciones del graph
+      - name: Ver opciones completas del graph
         run: |
-          echo "--- archivos del plugin graph ---"
-          ls node_modules/@quartz-community/graph || true
-          ls node_modules/@quartz-community/graph/dist || true
-          echo "--- opciones del graph ---"
-          grep -rn -o ".\{0,100\}\(depth\|repelForce\|centerForce\|linkDistance\|fontSize\|opacityScale\|scale\).\{0,120\}" node_modules/@quartz-community/graph/dist --include=*.js | head -15 || true
-          echo "--- graph en el YAML ---"
-          grep -n -B1 -A8 '@quartz-community/graph' quartz.config.default.yaml || true
+          echo "--- types.d.ts ---"
+          cat node_modules/@quartz-community/graph/dist/types.d.ts || true
+          echo "--- valores por defecto ---"
+          sed -n '335,390p' node_modules/@quartz-community/graph/dist/components/index.js || true
+          echo "--- README ---"
+          grep -n -i -B2 -A25 "option" node_modules/@quartz-community/graph/README.md | head -80 || true
 
       - name: Compilar Quartz
         shell: bash
