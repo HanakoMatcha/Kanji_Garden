@@ -123,7 +123,10 @@ jobs:
           echo "--- graph en el YAML ---"
           grep -n -B1 -A8 '@quartz-community/graph' quartz.config.default.yaml || true
 
-      - name: Compilar Quartz
+           - name: Compilar Quartz
+        timeout-minutes: 120
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npx quartz build
 
       - name: Medir tamaño del sitio
