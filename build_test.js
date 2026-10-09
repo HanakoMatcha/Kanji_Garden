@@ -2,7 +2,8 @@ import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
 
-// URLs públicas en formato CSV de Google Sheets (Versión TEST)
+// URLs públicas en formato CSV de Google Sheets
+// (si ya cambiaste los gid a las hojas reales, conserva los tuyos)
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=654834278&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=1745742637&single=true&output=csv";
 
@@ -12,6 +13,21 @@ const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 // Repositorio de imágenes (kanjium) servido por jsDelivr
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
+
+// ---------- Idiomas extra (editables) ----------
+// col = nombre EXACTO del encabezado en la hoja; etiqueta = cómo se muestra en la nota.
+// Si una columna no existe o la celda está vacía, simplemente no se muestra.
+const CAMPOS_VOCAB = [
+  { col: "Traditional Chinese", etiqueta: "中文 繁體" },
+  { col: "Simplified Chinese", etiqueta: "中文 简体" },
+  { col: "Pinyin", etiqueta: "Pinyin" },
+  { col: "Français", etiqueta: "Français" },
+  { col: "Deutsche", etiqueta: "Deutsch" },
+];
+// Columnas extra de la hoja de kanjis (ejemplo: { col: "Pinyin", etiqueta: "Pinyin" })
+const CAMPOS_KANJI = [];
+
+const SIN_JLPT = "Sin nivel JLPT";
 
 const ETIQUETAS_IMG = {
   origin: "Origen",
@@ -58,6 +74,42 @@ function filtrarComponentesValidos(texto) {
   if (!texto) return [];
   const regex = /[\u2E80-\u2FD5\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u{20000}-\u{2EBEF}]/gu;
   return Array.from(new Set(texto.match(regex) || []));
+}
+
+// Etiqueta a partir del nivel JLPT: "N3" -> "jlpt-n3" (vacío si no hay nivel)
+function etiquetaJlpt(valor) {
+  if (!valor || valor === SIN_JLPT) return "";
+  const s = String(valor)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return s ? `jlpt-${s}` : "";
+}
+
+// ---------- Idiomas extra ----------
+function bloqueCampos(row, campos) {
+  const lineas = campos
+    .map(({ col, etiqueta }) => {
+      const v = row[col]?.trim();
+      return v ? `**${etiqueta}:** ${v}` : "";
+    })
+    .filter(Boolean);
+  if (lineas.length === 0) return "";
+  return "\n## Otros idiomas\n\n" + lineas.join("\n\n") + "\n";
+}
+
+function revisarColumnas(nombre, records, campos) {
+  if (records.length === 0) {
+    console.warn(`AVISO: ${nombre} no tiene filas.`);
+    return;
+  }
+  const encabezados = Object.keys(records[0]);
+  console.log(`Encabezados de ${nombre}: ${encabezados.join(" | ")}`);
+  for (const { col } of campos) {
+    if (!encabezados.includes(col)) {
+      console.warn(`AVISO: ${nombre} no tiene una columna llamada "${col}".`);
+    }
+  }
 }
 
 // ---------- Imágenes de kanjium ----------
@@ -154,11 +206,12 @@ async function main() {
   console.log("Cargando índice de imágenes de kanjium...");
   await cargarIndiceImagenes();
 
-  // 1. Descargar y procesar BaseKanji TEST
-  console.log("Descargando BaseKanji TEST...");
+  // 1. Descargar y procesar la hoja de kanjis
+  console.log("Descargando hoja de kanjis...");
   const resKanji = await fetch(URL_KANJI);
   const textKanji = await resKanji.text();
   const kanjiRecords = parse(textKanji, { columns: true, skip_empty_lines: true });
+  revisarColumnas("hoja de kanjis", kanjiRecords, CAMPOS_KANJI);
 
   const componentesGlobales = new Set();
   let totalKanjis = 0;
@@ -210,91 +263,4 @@ tags:
 
 ## Etimología
 ${etimologia || "Sin datos registrados."}
-${seccionImagenes(kanji)}`;
-    escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
-  });
-
-  // Notas individuales de componentes válidos
-  const listaComponentes = Array.from(componentesGlobales);
-  listaComponentes.forEach((comp) => {
-    const md = `---
-title: "${yamlStr(comp)}"
-tipo: componente
-tags:
-  - radical
----
-# Componente: ${comp}
-
-Revisa los backlinks para ver kanjis con este componente.
-${seccionImagenes(comp)}`;
-    escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
-  });
-
-  // 2. Descargar y procesar Vocab TEST
-  console.log("Descargando Vocab TEST...");
-  const resVocab = await fetch(URL_VOCAB);
-  const textVocab = await resVocab.text();
-  const vocabRecords = parse(textVocab, { columns: true, skip_empty_lines: true });
-
-  let totalVocab = 0;
-
-  vocabRecords.forEach((row) => {
-    const palabra = row["日本語"]?.trim();
-    if (!palabra) return;
-
-    totalVocab++;
-
-    const kana = row["かな"]?.trim() || "";
-    const en = row["English"]?.trim() || "";
-    const es = row["Español"]?.trim() || "";
-    const jlpt = row["JLPT"]?.trim() || "Sin nivel JLPT";
-
-    const kanjis = extraerKanjis(palabra);
-    const kanjiLinks =
-      kanjis.length > 0
-        ? kanjis.map((k) => `[[kanji/${nombreSeguro(k)}|${k}]]`).join(", ")
-        : "Kana puro";
-
-    const md = `---
-title: "${yamlStr(palabra)}"
-kana: "${yamlStr(kana)}"
-tipo: vocabulario
-tags:
-  - vocabulario
----
-
-# ${palabra} (${kana})
-
-> **ES:** ${es || "—"}  
-> **EN:** ${en || "—"}
-
-**Kanjis:** ${kanjiLinks}
-
-**JLPT:** ${jlpt}
-`;
-    escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
-  });
-
-  // 3. Sin index.md en kanji/, vocab/ ni componentes/:
-  //    un índice con wikilinks a miles de notas satura el graph.
-  //    Quartz genera por su cuenta la lista de cada carpeta.
-
-  // 4. Portada principal
-  const indexMd = `---
-title: "Inicio"
----
-
-# Jardín Digital de Kanji y Vocabulario
-
-Base de datos viva interconectada a partir de Google Sheets.
-
-- [Explorar Kanjis](./kanji/) (${totalKanjis})
-- [Explorar Vocabulario](./vocab/) (${totalVocab})
-- [Explorar Componentes y Radicales](./componentes/) (${listaComponentes.length})
-`;
-  escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
-
-  console.log(`¡Listo! ${totalKanjis} kanjis, ${listaComponentes.length} componentes, ${totalVocab} palabras.`);
-}
-
-main();
+${bloqu
