@@ -45,6 +45,8 @@ jobs:
 
       - name: Descargar de Sheets y generar Markdown
         run: node build_test.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Fijar baseUrl en la configuración YAML
         run: |
@@ -110,30 +112,18 @@ jobs:
           else
             echo "No se encontró favicon.png en la raíz del repositorio"
           fi
-          echo "--- archivos icon* ---"
-          find quartz node_modules/@quartz-community -name "icon*" 2>/dev/null | head -20 || true
-          echo "--- archivos que mencionan icon.png ---"
-          grep -rIl "icon.png" quartz node_modules/@quartz-community --include=*.ts --include=*.tsx --include=*.js 2>/dev/null | head -10 || true
 
-      - name: Ver qué cambió en el YAML
-        run: git diff quartz.config.default.yaml || true
-    
-      - name: Descargar de Sheets y generar Markdown
-        run: node build_test.js
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+      - name: Ver opciones del graph
+        run: |
+          echo "--- archivos del plugin graph ---"
+          ls node_modules/@quartz-community/graph || true
+          ls node_modules/@quartz-community/graph/dist || true
+          echo "--- opciones del graph ---"
+          grep -rn -o ".\{0,100\}\(depth\|repelForce\|centerForce\|linkDistance\|fontSize\|opacityScale\|scale\).\{0,120\}" node_modules/@quartz-community/graph/dist --include=*.js | head -15 || true
+          echo "--- graph en el YAML ---"
+          grep -n -B1 -A8 '@quartz-community/graph' quartz.config.default.yaml || true
+
       - name: Compilar Quartz
         run: npx quartz build
 
-      - name: Comprobar favicon publicado
-        run: |
-          ls -la public/static/ 2>/dev/null | head -20 || true
-          grep -o '<link[^>]*icon[^>]*>' public/index.html | head -3 || true
-
-      - name: Publicar en GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public
-          publish_branch: gh-pages
+      -
