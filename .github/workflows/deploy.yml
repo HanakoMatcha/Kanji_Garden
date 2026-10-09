@@ -129,6 +129,12 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx quartz build
 
+      - name: Ver qué pesa más
+        run: |
+          du -sh public/* | sort -h | tail -8
+          echo "--- una nota de kanji ---"
+          ls -la public/kanji | head -5
+
       - name: Medir tamaño del sitio
         run: |
           du -sh public || true
@@ -142,3 +148,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./public
           publish_branch: gh-pages
+          force_orphan: true
