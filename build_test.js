@@ -4,8 +4,8 @@ import { parse } from "csv-parse/sync";
 
 // URLs públicas en formato CSV de Google Sheets
 // (si ya cambiaste los gid a las hojas reales, conserva los tuyos)
-const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
-const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
+const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=654834278&single=true&output=csv";
+const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=1745742637&single=true&output=csv";
 
 // RUTA DE GITHUB (sin https:// ni barra final)
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
@@ -260,6 +260,9 @@ tags:
 **Componentes:** ${compsLinks}
 
 ---
+
+## Etimología
+${etimologia || "Sin datos registrados."}
 ${bloqueCampos(row, CAMPOS_KANJI)}${seccionImagenes(kanji)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
@@ -351,7 +354,3 @@ Base de datos viva interconectada a partir de Google Sheets.
 }
 
 main();
-
-## Etimología
-${etimologia || "Sin datos registrados."}
-${bloqu
