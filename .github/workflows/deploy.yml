@@ -117,7 +117,12 @@ jobs:
 
       - name: Ver qué cambió en el YAML
         run: git diff quartz.config.default.yaml || true
-
+    
+      - name: Descargar de Sheets y generar Markdown
+        run: node build_test.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Compilar Quartz
         run: npx quartz build
 
