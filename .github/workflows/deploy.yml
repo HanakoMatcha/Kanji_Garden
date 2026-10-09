@@ -100,6 +100,15 @@ jobs:
           echo "--- bloque layout resultante ---"
           sed -n '/^layout:/,$p' "$f"
 
+      - name: Apagar imágenes de vista previa (og-image)
+        run: |
+          f=quartz.config.default.yaml
+          echo "--- antes ---"
+          grep -n -A6 'quartz-community/og-image' "$f" || true
+          sed -i '/source: "@quartz-community\/og-image"/,/^  - source/ s/enabled: true/enabled: false/' "$f"
+          echo "--- después ---"
+          grep -n -A6 'quartz-community/og-image' "$f" || true
+
       - name: Cambiar favicon
         run: |
           if [ -f "favicon.png" ]; then
@@ -124,40 +133,18 @@ jobs:
           grep -n -B1 -A8 '@quartz-community/graph' quartz.config.default.yaml || true
 
       - name: Compilar Quartz
+        shell: bash
         timeout-minutes: 120
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: npx quartz build
+        run: npx quartz build 2>&1 | grep -v "isn't yet tracked by git"
 
-      - name: Ver qué pesa más
-        run: |
-          du -sh public/* | sort -h | tail -8
-          echo "--- una nota de kanji ---"
-          ls -la public/kanji | head -5
-    
-      - name: Ver peso por nota
-        run: |
-          for d in vocab kanji componentes; do
-            echo "== $d =="
-            echo -n "html: "; find public/$d -name "*.html" | wc -l
-            echo -n "webp: "; find public/$d -name "*.webp" | wc -l
-            echo "html más pesados:"
-            find public/$d -name "*.html" -printf "%s %p\n" | sort -n | tail -3
-            echo -n "html típico (mediana, bytes): "
-            find public/$d -name "*.html" -printf "%s\n" | sort -n | awk '{a[NR]=$1} END{print a[int(NR/2)+1]}'
-          done
-          echo "--- tipos de archivo ---"
-          find public -type f | sed 's/.*\.//' | sort | uniq -c | sort -rn | head
-          find public -name "*.webp" -printf "%s\n" | awk '{s+=$1} END{print s/1048576 " MB en webp"}'
-          echo "--- og-image en el YAML ---"
-          grep -n -i "og-image\|ogimage\|opengraph" quartz.config.default.yaml || true
-   
       - name: Medir tamaño del sitio
         run: |
           du -sh public || true
           find public -name "contentIndex*" -exec ls -la {} \; || true
-          echo "páginas HTML:"
-          find public -name "*.html" | wc -l
+          echo -n "páginas HTML: "; find public -name "*.html" | wc -l
+          echo -n "imágenes webp: "; find public -name "*.webp" | wc -l
 
       - name: Publicar en GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
