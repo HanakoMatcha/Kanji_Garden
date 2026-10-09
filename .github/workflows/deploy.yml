@@ -126,4 +126,17 @@ jobs:
       - name: Compilar Quartz
         run: npx quartz build
 
-      -
+      - name: Medir tamaño del sitio
+        run: |
+          du -sh public || true
+          find public -name "contentIndex*" -exec ls -la {} \; || true
+          echo "páginas HTML:"
+          find public -name "*.html" | wc -l
+
+      - name: Publicar en GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages
+      
