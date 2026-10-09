@@ -109,6 +109,13 @@ jobs:
           echo "--- después ---"
           grep -n -A6 'quartz-community/og-image' "$f" || true
 
+      - name: Ajustar opciones del graph
+        run: |
+          f=quartz.config.default.yaml
+          sed -i '/source: "@quartz-community\/graph"/,/^  - source/ s|^    enabled: true$|    enabled: true\n    options:\n      globalGraph:\n        showTags: false|' "$f"
+          echo "--- bloque del graph ---"
+          grep -n -A12 'quartz-community/graph' "$f" || true
+
       - name: Cambiar favicon
         run: |
           if [ -f "favicon.png" ]; then
@@ -122,21 +129,16 @@ jobs:
             echo "No se encontró favicon.png en la raíz del repositorio"
           fi
 
-      - name: Ver opciones completas del graph
-        run: |
-          echo "--- types.d.ts ---"
-          cat node_modules/@quartz-community/graph/dist/types.d.ts || true
-          echo "--- valores por defecto ---"
-          sed -n '335,390p' node_modules/@quartz-community/graph/dist/components/index.js || true
-          echo "--- README ---"
-          grep -n -i -B2 -A25 "option" node_modules/@quartz-community/graph/README.md | head -80 || true
-
       - name: Compilar Quartz
         shell: bash
         timeout-minutes: 120
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx quartz build 2>&1 | grep -v "isn't yet tracked by git"
+
+      - name: Comprobar opciones del graph publicadas
+        run: |
+          grep -o '.\{0,80\}showTags.\{0,60\}' public/index.html | head -5 || echo "sin showTags en index.html"
 
       - name: Medir tamaño del sitio
         run: |
