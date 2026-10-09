@@ -260,6 +260,97 @@ tags:
 **Componentes:** ${compsLinks}
 
 ---
+${bloqueCampos(row, CAMPOS_KANJI)}${seccionImagenes(kanji)}`;
+    escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
+  });
+
+  // Notas individuales de componentes válidos
+  const listaComponentes = Array.from(componentesGlobales);
+  listaComponentes.forEach((comp) => {
+    const md = `---
+title: "${yamlStr(comp)}"
+tipo: componente
+tags:
+  - radical
+---
+# Componente: ${comp}
+
+Revisa los backlinks para ver kanjis con este componente.
+${seccionImagenes(comp)}`;
+    escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
+  });
+
+  // 2. Descargar y procesar la hoja de vocabulario
+  console.log("Descargando hoja de vocabulario...");
+  const resVocab = await fetch(URL_VOCAB);
+  const textVocab = await resVocab.text();
+  const vocabRecords = parse(textVocab, { columns: true, skip_empty_lines: true });
+  revisarColumnas("hoja de vocabulario", vocabRecords, CAMPOS_VOCAB);
+
+  let totalVocab = 0;
+
+  vocabRecords.forEach((row) => {
+    const palabra = row["日本語"]?.trim();
+    if (!palabra) return;
+
+    totalVocab++;
+
+    const kana = row["かな"]?.trim() || "";
+    const en = row["English"]?.trim() || "";
+    const es = row["Español"]?.trim() || "";
+    const jlpt = row["JLPT"]?.trim() || SIN_JLPT;
+    const jlptTag = etiquetaJlpt(jlpt);
+
+    const kanjis = extraerKanjis(palabra);
+    const kanjiLinks =
+      kanjis.length > 0
+        ? kanjis.map((k) => `[[kanji/${nombreSeguro(k)}|${k}]]`).join(", ")
+        : "Kana puro";
+
+    const md = `---
+title: "${yamlStr(palabra)}"
+kana: "${yamlStr(kana)}"
+jlpt: "${yamlStr(jlpt)}"
+tipo: vocabulario
+tags:
+  - vocabulario${jlptTag ? `\n  - ${jlptTag}` : ""}
+---
+
+# ${palabra} (${kana})
+
+> **ES:** ${es || "—"}  
+> **EN:** ${en || "—"}
+
+**Kanjis:** ${kanjiLinks}
+
+**JLPT:** ${jlpt}
+${bloqueCampos(row, CAMPOS_VOCAB)}`;
+    escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
+  });
+
+  // 3. Sin index.md en kanji/, vocab/ ni componentes/:
+  //    un índice con wikilinks a miles de notas satura el graph.
+  //    Quartz genera por su cuenta la lista de cada carpeta.
+
+  // 4. Portada principal
+  const indexMd = `---
+title: "Inicio"
+---
+
+# Jardín Digital de Kanji y Vocabulario
+
+Base de datos viva interconectada a partir de Google Sheets.
+
+- [Explorar Kanjis](./kanji/) (${totalKanjis})
+- [Explorar Vocabulario](./vocab/) (${totalVocab})
+- [Explorar Componentes y Radicales](./componentes/) (${listaComponentes.length})
+`;
+  escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
+
+  console.log(`¡Listo! ${totalKanjis} kanjis, ${listaComponentes.length} componentes, ${totalVocab} palabras.`);
+}
+
+main();
 
 ## Etimología
 ${etimologia || "Sin datos registrados."}
