@@ -161,13 +161,13 @@ async function main() {
   const kanjiRecords = parse(textKanji, { columns: true, skip_empty_lines: true });
 
   const componentesGlobales = new Set();
-  const listaKanjis = [];
+  let totalKanjis = 0;
 
   kanjiRecords.forEach((row) => {
     const kanji = row["Kanji"]?.trim();
     if (!kanji) return;
 
-    listaKanjis.push(kanji);
+    totalKanjis++;
 
     const onyomi = row["Onyomi"]?.trim() || "";
     const kunyomi = row["Kunyomi"]?.trim() || "";
@@ -236,11 +236,13 @@ ${seccionImagenes(comp)}`;
   const textVocab = await resVocab.text();
   const vocabRecords = parse(textVocab, { columns: true, skip_empty_lines: true });
 
-  const listaVocab = [];
+  let totalVocab = 0;
 
   vocabRecords.forEach((row) => {
     const palabra = row["日本語"]?.trim();
     if (!palabra) return;
+
+    totalVocab++;
 
     const kana = row["かな"]?.trim() || "";
     const en = row["English"]?.trim() || "";
@@ -270,44 +272,12 @@ tags:
 
 **JLPT:** ${jlpt}
 `;
-    const safeName = nombreSeguro(palabra);
-    listaVocab.push({ palabra, safeName });
-    escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${safeName}.md`), md);
+    escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
-  // 3. Índices con wikilinks (Quartz resuelve los slugs por su cuenta)
-  const indexKanjiMd = `---
-title: "Kanji"
----
-# Índice de Kanjis
-
-Total registrados: ${listaKanjis.length}
-
-${listaKanjis.map((k) => `- [[kanji/${nombreSeguro(k)}|${k}]]`).join("\n")}
-`;
-  escribirSiCambio(path.join(CONTENT_DIR, "kanji", "index.md"), indexKanjiMd);
-
-  const indexVocabMd = `---
-title: "Vocabulario"
----
-# Índice de Vocabulario
-
-Total registrados: ${listaVocab.length}
-
-${listaVocab.map((v) => `- [[vocab/${v.safeName}|${v.palabra}]]`).join("\n")}
-`;
-  escribirSiCambio(path.join(CONTENT_DIR, "vocab", "index.md"), indexVocabMd);
-
-  const indexCompMd = `---
-title: "Componentes"
----
-# Índice de Componentes
-
-Total registrados: ${listaComponentes.length}
-
-${listaComponentes.map((c) => `- [[componentes/${nombreSeguro(c)}|${c}]]`).join("\n")}
-`;
-  escribirSiCambio(path.join(CONTENT_DIR, "componentes", "index.md"), indexCompMd);
+  // 3. Sin index.md en kanji/, vocab/ ni componentes/:
+  //    un índice con wikilinks a miles de notas satura el graph.
+  //    Quartz genera por su cuenta la lista de cada carpeta.
 
   // 4. Portada principal
   const indexMd = `---
@@ -318,13 +288,13 @@ title: "Inicio"
 
 Base de datos viva interconectada a partir de Google Sheets.
 
-- [Explorar Kanjis](./kanji/)
-- [Explorar Vocabulario](./vocab/)
-- [Explorar Componentes y Radicales](./componentes/)
+- [Explorar Kanjis](./kanji/) (${totalKanjis})
+- [Explorar Vocabulario](./vocab/) (${totalVocab})
+- [Explorar Componentes y Radicales](./componentes/) (${listaComponentes.length})
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
-  console.log("¡Notas e índices generados con URLs TEST!");
+  console.log(`¡Listo! ${totalKanjis} kanjis, ${listaComponentes.length} componentes, ${totalVocab} palabras.`);
 }
 
 main();
