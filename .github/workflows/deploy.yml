@@ -98,11 +98,33 @@ jobs:
           echo "--- bloque layout resultante ---"
           sed -n '/^layout:/,$p' "$f"
 
+      - name: Cambiar favicon
+        run: |
+          if [ -f "favicon.png" ]; then
+            mkdir -p quartz/static
+            cp favicon.png quartz/static/icon.png
+            find node_modules/@quartz-community -name "icon.png" 2>/dev/null | while read -r f; do
+              cp favicon.png "$f"
+              echo "Reemplazado: $f"
+            done
+          else
+            echo "No se encontró favicon.png en la raíz del repositorio"
+          fi
+          echo "--- archivos icon* ---"
+          find quartz node_modules/@quartz-community -name "icon*" 2>/dev/null | head -20 || true
+          echo "--- archivos que mencionan icon.png ---"
+          grep -rIl "icon.png" quartz node_modules/@quartz-community --include=*.ts --include=*.tsx --include=*.js 2>/dev/null | head -10 || true
+
       - name: Ver qué cambió en el YAML
         run: git diff quartz.config.default.yaml || true
 
       - name: Compilar Quartz
         run: npx quartz build
+
+      - name: Comprobar favicon publicado
+        run: |
+          ls -la public/static/ 2>/dev/null | head -20 || true
+          grep -o '<link[^>]*icon[^>]*>' public/index.html | head -3 || true
 
       - name: Publicar en GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
