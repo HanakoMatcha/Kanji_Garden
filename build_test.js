@@ -3,7 +3,7 @@ import path from "path";
 import { parse } from "csv-parse/sync";
 
 // URLs públicas en formato CSV de Google Sheets
-const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=446024075&single=true&output=csv";
+const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
 
 // RUTA DE GITHUB (sin https:// ni barra final)
@@ -13,17 +13,7 @@ const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
 
-// Idiomas extra: alias flexibles para no fallar por variaciones de mayúsculas, espacios o nombres comunes
-const CAMPOS_VOCAB = [
-  { claves: ["traditional chinese", "chinese traditional", "chino tradicional", "繁體中文", "繁体中文"], etiqueta: "中文 繁體" },
-  { claves: ["simplified chinese", "chinese simplified", "chino simplificado", "简体中文", "簡體中文"], etiqueta: "中文 简体" },
-  { claves: ["pinyin", "pin yin", "拼音"], etiqueta: "Pinyin" },
-  { claves: ["français", "francais", "french", "frances", "francés"], etiqueta: "Français" },
-  { claves: ["deutsche", "deutsch", "german", "aleman", "alemán"], etiqueta: "Deutsch" },
-];
-
 const CAMPOS_KANJI = [];
-
 const SIN_JLPT = "Sin nivel JLPT";
 
 const ETIQUETAS_IMG = {
@@ -80,7 +70,7 @@ function etiquetaJlpt(valor) {
   return s ? `jlpt-${s}` : "";
 }
 
-// Búsqueda flexible de columnas tolerante a BOM, mayúsculas, espacios y nombres alternativos
+// Búsqueda insensible a BOM (\uFEFF), mayúsculas y espacios
 function getValor(row, posiblesNombres) {
   const lista = Array.isArray(posiblesNombres) ? posiblesNombres : [posiblesNombres];
   const clavesFila = Object.keys(row);
@@ -96,18 +86,6 @@ function getValor(row, posiblesNombres) {
     }
   }
   return "";
-}
-
-function bloqueCampos(row, campos) {
-  const lineas = campos
-    .map(({ claves, etiqueta }) => {
-      const v = getValor(row, claves);
-      return v ? `**${etiqueta}:** ${v}` : "";
-    })
-    .filter(Boolean);
-
-  if (lineas.length === 0) return "";
-  return "\n## Otros idiomas\n\n" + lineas.join("\n\n") + "\n";
 }
 
 // ---------- Imágenes de kanjium ----------
@@ -221,22 +199,21 @@ async function main() {
   let totalKanjis = 0;
 
   kanjiRecords.forEach((row) => {
-    const kanji = getValor(row, ["Kanji", "かんじ", "Character"]);
+    const kanji = getValor(row, ["Kanji", "Character"]);
     if (!kanji) return;
 
     totalKanjis++;
 
-    const onyomi = getValor(row, ["Onyomi", "On'yomi", "音読み", "On"]);
-    const kunyomi = getValor(row, ["Kunyomi", "Kun'yomi", "訓読み", "Kun"]);
-    const significado = getValor(row, ["Significado", "Meaning", "Traducción"]);
+    const onyomi = getValor(row, ["Onyomi", "On'yomi", "音読み"]);
+    const kunyomi = getValor(row, ["Kunyomi", "Kun'yomi", "訓読み"]);
+    const significado = getValor(row, ["Significado", "Meaning"]);
     const componentesRaw = getValor(row, [
       "Componentes Reales (Completos)",
       "Componentes Reales",
       "Componentes",
-      "Radicales",
     ]);
-    const kyujitai = getValor(row, ["Kyujitai (Kanji Antiguo)", "Kyujitai", "旧字体"]);
-    const etimologia = getValor(row, ["Etimología", "Etimologia", "Etymology"]);
+    const kyujitai = getValor(row, ["Kyujitai (Kanji Antiguo)", "Kyujitai"]);
+    const etimologia = getValor(row, ["Etimología", "Etimologia"]);
 
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
@@ -272,7 +249,7 @@ tags:
 
 ## Etimología
 ${etimologia || "Sin datos registrados."}
-${bloqueCampos(row, CAMPOS_KANJI)}${seccionImagenes(kanji)}`;
+${seccionImagenes(kanji)}`;
 
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
@@ -311,15 +288,20 @@ ${seccionImagenes(comp)}`;
   let totalVocab = 0;
 
   vocabRecords.forEach((row) => {
-    const palabra = getValor(row, ["日本語", "Palabra", "Vocabulario", "Word", "Japanese"]);
+    const palabra = getValor(row, ["日本語", "Palabra", "Vocabulario"]);
     if (!palabra) return;
 
     totalVocab++;
 
-    const kana = getValor(row, ["かな", "Kana", "Furigana", "Lectura", "Reading"]);
-    const en = getValor(row, ["English", "Inglés", "Ingles", "EN"]);
-    const es = getValor(row, ["Español", "Espanol", "Spanish", "ES"]);
-    const jlpt = getValor(row, ["JLPT", "Nivel JLPT", "Level"]) || SIN_JLPT;
+    const kana = getValor(row, ["かな", "Kana"]);
+    const en = getValor(row, ["English", "Inglés", "Ingles"]);
+    const es = getValor(row, ["Español", "Espanol"]);
+    const tradChinese = getValor(row, ["Traditional Chinese", "繁體中文"]);
+    const simpChinese = getValor(row, ["Simplified Chinese", "简体中文"]);
+    const pinyin = getValor(row, ["Pinyin"]);
+    const fr = getValor(row, ["Français", "Francais", "French"]);
+    const de = getValor(row, ["Deutsche", "Deutsch", "German"]);
+    const jlpt = getValor(row, ["JLPT"]) || SIN_JLPT;
     const jlptTag = etiquetaJlpt(jlpt);
 
     const kanjis = extraerKanjis(palabra);
@@ -327,6 +309,23 @@ ${seccionImagenes(comp)}`;
       kanjis.length > 0
         ? kanjis.map((k) => `[[kanji/${nombreSeguro(k)}|${k}]]`).join(", ")
         : "Kana puro";
+
+    // Bloque de traducciones en la cabecera
+    const lineasTraducciones = [
+      es ? `> **ES:** ${es}` : null,
+      en ? `> **EN:** ${en}` : null,
+      fr ? `> **FR:** ${fr}` : null,
+      de ? `> **DE:** ${de}` : null,
+      tradChinese ? `> **繁體:** ${tradChinese}` : null,
+      simpChinese ? `> **简体:** ${simpChinese}` : null,
+      pinyin ? `> **Pinyin:** ${pinyin}` : null,
+    ].filter(Boolean);
+
+    const bloqueTraducciones = lineasTraducciones.length > 0
+      ? lineasTraducciones.join("  \n")
+      : "> —";
+
+    const encabezadoTitulo = kana ? `# ${palabra} (${kana})` : `# ${palabra}`;
 
     const md = `---
 title: "${yamlStr(palabra)}"
@@ -337,15 +336,14 @@ tags:
   - vocabulario${jlptTag ? `\n  - ${jlptTag}` : ""}
 ---
 
-# ${palabra} (${kana})
+${encabezadoTitulo}
 
-> **ES:** ${es || "—"}  
-> **EN:** ${en || "—"}
+${bloqueTraducciones}
 
 **Kanjis:** ${kanjiLinks}
 
 **JLPT:** ${jlpt}
-${bloqueCampos(row, CAMPOS_VOCAB)}`;
+`;
 
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
