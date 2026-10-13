@@ -3,7 +3,6 @@ import path from "path";
 import { parse } from "csv-parse/sync";
 
 // URLs públicas en formato CSV de Google Sheets
-// (si ya cambiaste los gid a las hojas reales, conserva los tuyos)
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=446024075&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
 
@@ -14,17 +13,15 @@ const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
 
-// ---------- Idiomas extra (editables) ----------
-// col = nombre EXACTO del encabezado en la hoja; etiqueta = cómo se muestra en la nota.
-// Si una columna no existe o la celda está vacía, simplemente no se muestra.
+// Idiomas extra: alias flexibles para no fallar por variaciones de mayúsculas, espacios o nombres comunes
 const CAMPOS_VOCAB = [
-  { col: "Traditional Chinese", etiqueta: "中文 繁體" },
-  { col: "Simplified Chinese", etiqueta: "中文 简体" },
-  { col: "Pinyin", etiqueta: "Pinyin" },
-  { col: "Français", etiqueta: "Français" },
-  { col: "Deutsche", etiqueta: "Deutsch" },
+  { claves: ["traditional chinese", "chinese traditional", "chino tradicional", "繁體中文", "繁体中文"], etiqueta: "中文 繁體" },
+  { claves: ["simplified chinese", "chinese simplified", "chino simplificado", "简体中文", "簡體中文"], etiqueta: "中文 简体" },
+  { claves: ["pinyin", "pin yin", "拼音"], etiqueta: "Pinyin" },
+  { claves: ["français", "francais", "french", "frances", "francés"], etiqueta: "Français" },
+  { claves: ["deutsche", "deutsch", "german", "aleman", "alemán"], etiqueta: "Deutsch" },
 ];
-// Columnas extra de la hoja de kanjis (ejemplo: { col: "Pinyin", etiqueta: "Pinyin" })
+
 const CAMPOS_KANJI = [];
 
 const SIN_JLPT = "Sin nivel JLPT";
@@ -54,12 +51,10 @@ function escribirSiCambio(ruta, contenidoNuevo) {
   fs.writeFileSync(ruta, contenidoNuevo);
 }
 
-// Una sola función para nombres de archivo Y enlaces
 function nombreSeguro(s) {
   return String(s).normalize("NFC").replace(/[\/\\?%*:|"<>#&\s]/g, "_");
 }
 
-// Escapar texto para usarlo dentro de comillas en el frontmatter YAML
 function yamlStr(s) {
   return String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
@@ -76,7 +71,6 @@ function filtrarComponentesValidos(texto) {
   return Array.from(new Set(texto.match(regex) || []));
 }
 
-// Etiqueta a partir del nivel JLPT: "N3" -> "jlpt-n3" (vacío si no hay nivel)
 function etiquetaJlpt(valor) {
   if (!valor || valor === SIN_JLPT) return "";
   const s = String(valor)
@@ -86,34 +80,37 @@ function etiquetaJlpt(valor) {
   return s ? `jlpt-${s}` : "";
 }
 
-// ---------- Idiomas extra ----------
+// Búsqueda flexible de columnas tolerante a BOM, mayúsculas, espacios y nombres alternativos
+function getValor(row, posiblesNombres) {
+  const lista = Array.isArray(posiblesNombres) ? posiblesNombres : [posiblesNombres];
+  const clavesFila = Object.keys(row);
+
+  for (const nombre of lista) {
+    const target = nombre.trim().toLowerCase();
+    const claveEncontrada = clavesFila.find(
+      (k) => k.replace(/^\uFEFF/, "").trim().toLowerCase() === target
+    );
+    if (claveEncontrada && row[claveEncontrada] !== undefined && row[claveEncontrada] !== null) {
+      const val = String(row[claveEncontrada]).trim();
+      if (val !== "") return val;
+    }
+  }
+  return "";
+}
+
 function bloqueCampos(row, campos) {
   const lineas = campos
-    .map(({ col, etiqueta }) => {
-      const v = row[col]?.trim();
+    .map(({ claves, etiqueta }) => {
+      const v = getValor(row, claves);
       return v ? `**${etiqueta}:** ${v}` : "";
     })
     .filter(Boolean);
+
   if (lineas.length === 0) return "";
   return "\n## Otros idiomas\n\n" + lineas.join("\n\n") + "\n";
 }
 
-function revisarColumnas(nombre, records, campos) {
-  if (records.length === 0) {
-    console.warn(`AVISO: ${nombre} no tiene filas.`);
-    return;
-  }
-  const encabezados = Object.keys(records[0]);
-  console.log(`Encabezados de ${nombre}: ${encabezados.join(" | ")}`);
-  for (const { col } of campos) {
-    if (!encabezados.includes(col)) {
-      console.warn(`AVISO: ${nombre} no tiene una columna llamada "${col}".`);
-    }
-  }
-}
-
 // ---------- Imágenes de kanjium ----------
-// código Unicode decimal -> [{ carpeta, archivo, ruta }]
 const indiceImagenes = new Map();
 
 async function cargarIndiceImagenes() {
@@ -147,7 +144,6 @@ async function cargarIndiceImagenes() {
       if (!m) continue;
       const stem = m[1];
 
-      // Clave: dígitos iniciales (19978, 19978_1...) o el propio kanji como nombre
       let clave = null;
       const num = stem.match(/^(\d+)/);
       if (num) clave = num[1];
@@ -202,32 +198,45 @@ async function main() {
     fs.writeFileSync(configPath, config, "utf8");
   }
 
-  // 0. Índice de imágenes disponibles
+  // 0. Cargar recursos de imágenes
   console.log("Cargando índice de imágenes de kanjium...");
   await cargarIndiceImagenes();
 
-  // 1. Descargar y procesar la hoja de kanjis
+  // 1. Descargar y procesar kanjis
   console.log("Descargando hoja de kanjis...");
   const resKanji = await fetch(URL_KANJI);
   const textKanji = await resKanji.text();
-  const kanjiRecords = parse(textKanji, { columns: true, skip_empty_lines: true });
-  revisarColumnas("hoja de kanjis", kanjiRecords, CAMPOS_KANJI);
+  const kanjiRecords = parse(textKanji, {
+    columns: true,
+    skip_empty_lines: true,
+    bom: true,
+    trim: true,
+  });
+
+  if (kanjiRecords.length > 0) {
+    console.log(`Encabezados detectados en KANJI: ${Object.keys(kanjiRecords[0]).join(" | ")}`);
+  }
 
   const componentesGlobales = new Set();
   let totalKanjis = 0;
 
   kanjiRecords.forEach((row) => {
-    const kanji = row["Kanji"]?.trim();
+    const kanji = getValor(row, ["Kanji", "かんじ", "Character"]);
     if (!kanji) return;
 
     totalKanjis++;
 
-    const onyomi = row["Onyomi"]?.trim() || "";
-    const kunyomi = row["Kunyomi"]?.trim() || "";
-    const significado = row["Significado"]?.trim() || "";
-    const componentesRaw = row["Componentes Reales (Completos)"] || "";
-    const kyujitai = row["Kyujitai (Kanji Antiguo)"]?.trim() || "";
-    const etimologia = row["Etimología"]?.trim() || "";
+    const onyomi = getValor(row, ["Onyomi", "On'yomi", "音読み", "On"]);
+    const kunyomi = getValor(row, ["Kunyomi", "Kun'yomi", "訓読み", "Kun"]);
+    const significado = getValor(row, ["Significado", "Meaning", "Traducción"]);
+    const componentesRaw = getValor(row, [
+      "Componentes Reales (Completos)",
+      "Componentes Reales",
+      "Componentes",
+      "Radicales",
+    ]);
+    const kyujitai = getValor(row, ["Kyujitai (Kanji Antiguo)", "Kyujitai", "旧字体"]);
+    const etimologia = getValor(row, ["Etimología", "Etimologia", "Etymology"]);
 
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
@@ -264,10 +273,11 @@ tags:
 ## Etimología
 ${etimologia || "Sin datos registrados."}
 ${bloqueCampos(row, CAMPOS_KANJI)}${seccionImagenes(kanji)}`;
+
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
-  // Notas individuales de componentes válidos
+  // Notas de componentes
   const listaComponentes = Array.from(componentesGlobales);
   listaComponentes.forEach((comp) => {
     const md = `---
@@ -283,25 +293,33 @@ ${seccionImagenes(comp)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
   });
 
-  // 2. Descargar y procesar la hoja de vocabulario
+  // 2. Descargar y procesar vocabulario
   console.log("Descargando hoja de vocabulario...");
   const resVocab = await fetch(URL_VOCAB);
   const textVocab = await resVocab.text();
-  const vocabRecords = parse(textVocab, { columns: true, skip_empty_lines: true });
-  revisarColumnas("hoja de vocabulario", vocabRecords, CAMPOS_VOCAB);
+  const vocabRecords = parse(textVocab, {
+    columns: true,
+    skip_empty_lines: true,
+    bom: true,
+    trim: true,
+  });
+
+  if (vocabRecords.length > 0) {
+    console.log(`Encabezados detectados en VOCAB: ${Object.keys(vocabRecords[0]).join(" | ")}`);
+  }
 
   let totalVocab = 0;
 
   vocabRecords.forEach((row) => {
-    const palabra = row["日本語"]?.trim();
+    const palabra = getValor(row, ["日本語", "Palabra", "Vocabulario", "Word", "Japanese"]);
     if (!palabra) return;
 
     totalVocab++;
 
-    const kana = row["かな"]?.trim() || "";
-    const en = row["English"]?.trim() || "";
-    const es = row["Español"]?.trim() || "";
-    const jlpt = row["JLPT"]?.trim() || SIN_JLPT;
+    const kana = getValor(row, ["かな", "Kana", "Furigana", "Lectura", "Reading"]);
+    const en = getValor(row, ["English", "Inglés", "Ingles", "EN"]);
+    const es = getValor(row, ["Español", "Espanol", "Spanish", "ES"]);
+    const jlpt = getValor(row, ["JLPT", "Nivel JLPT", "Level"]) || SIN_JLPT;
     const jlptTag = etiquetaJlpt(jlpt);
 
     const kanjis = extraerKanjis(palabra);
@@ -328,14 +346,11 @@ tags:
 
 **JLPT:** ${jlpt}
 ${bloqueCampos(row, CAMPOS_VOCAB)}`;
+
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
-  // 3. Sin index.md en kanji/, vocab/ ni componentes/:
-  //    un índice con wikilinks a miles de notas satura el graph.
-  //    Quartz genera por su cuenta la lista de cada carpeta.
-
-  // 4. Portada principal
+  // 3. Portada principal
   const indexMd = `---
 title: "Inicio"
 ---
