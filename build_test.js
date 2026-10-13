@@ -88,6 +88,33 @@ function getValor(row, posiblesNombres) {
   return "";
 }
 
+// Limpiador y formateador de etimología (remueve ruido de Wiktionary / MediaWiki)
+function limpiarEtimologiaWiktionary(raw) {
+  if (!raw) return "Sin datos registrados.";
+
+  let texto = raw
+    // 1. Quitar marcas de imágenes y plantillas de MediaWiki
+    .replace(/\[\[(?:[^\vert{}\]]*\Vert{})*([^\]]+)\]\]/g, "$1") // enlaces [[archivo|texto]] -> texto
+    .replace(/\{\{[^}]*\}\}/g, "")                    // plantillas {{cog ...}}
+    .replace(/(?:thumb|left|right)\|[^|]+\|/gi, "")   // fragmentos tipo thumb|zh 女性|
+    
+    // 2. Limpiar prefijos y códigos lingüísticos de Wiktionary
+    .replace(/\b(zh|yue|cmn|hak|nan):\s*/gi, "")
+    .replace(/\b(sit-pro|tbq-pro|sit-bai-pro|tbq-kuk-pro|tbq-lol-pro|mkh-vie-pro|mkh-mnc-pro|aav-pro|kar-pro|qfa-lic-pro)\s+\*/gi, "proto-*")
+    .replace(/\b(bo|my|vi|und|omx|mnw|ssm|kac|cdm|lhu|lus|sti|bca)\s+/gi, "")
+    
+    // 3. Normalizar saltos de línea y viñetas
+    .replace(/\s*\|\s*\*\s*/g, "\n\n- ")              // listas con pleca y asterisco: " | * "
+    .replace(/\s*\|\s*/g, "\n\n")                     // plecas sueltas a saltos de párrafo
+    .replace(/\n{3,}/g, "\n\n")
+    
+    // 4. Alinear viñetas markdown y recortar bordes
+    .replace(/^[ \t]*-[ \t]*/gm, "- ")
+    .trim();
+
+  return texto || "Sin datos registrados.";
+}
+
 // ---------- Imágenes de kanjium ----------
 const indiceImagenes = new Map();
 
@@ -213,7 +240,10 @@ async function main() {
       "Componentes",
     ]);
     const kyujitai = getValor(row, ["Kyujitai (Kanji Antiguo)", "Kyujitai"]);
-    const etimologia = getValor(row, ["Etimología", "Etimologia"]);
+    
+    // Extracción y saneamiento de la etimología
+    const etimologiaRaw = getValor(row, ["Etimología", "Etimologia", "Etymology"]);
+    const etimologia = limpiarEtimologiaWiktionary(etimologiaRaw);
 
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
@@ -248,7 +278,7 @@ tags:
 ---
 
 ## Etimología
-${etimologia || "Sin datos registrados."}
+${etimologia}
 ${seccionImagenes(kanji)}`;
 
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
