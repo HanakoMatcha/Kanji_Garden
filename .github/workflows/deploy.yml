@@ -93,10 +93,11 @@ jobs:
           setc "$D" highlight 'rgba(255, 79, 216, 0.15)'
           setc "$D" textHighlight '"#5dff9a55"'
 
-      - name: Mostrar graph en páginas de carpeta y etiquetas
+      - name: Graph en carpetas, sin graph en páginas de etiquetas
         run: |
           f=quartz.config.default.yaml
           sed -i '/^    folder:/,/^    canvas:/ { /^      positions:/d; /^        right: \[\]/d }' "$f"
+          sed -i '/^    tag:/,/^    canvas:/ s/^        - reader-mode$/        - reader-mode\n      positions:\n        right: []/' "$f"
           echo "--- bloque layout resultante ---"
           sed -n '/^layout:/,$p' "$f"
 
@@ -112,7 +113,7 @@ jobs:
       - name: Ajustar opciones del graph
         run: |
           f=quartz.config.default.yaml
-          sed -i '/source: "@quartz-community\/graph"/,/^  - source/ s|^    enabled: true$|    enabled: true\n    options:\n      globalGraph:\n        showTags: false|' "$f"
+          sed -i '/source: "@quartz-community\/graph"/,/^  - source/ s|^    enabled: true$|    enabled: true\n    options:\n      globalGraph:\n        showTags: false\n        depth: 2|' "$f"
           echo "--- bloque del graph ---"
           grep -n -A12 'quartz-community/graph' "$f" || true
 
@@ -136,9 +137,14 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx quartz build 2>&1 | grep -v "isn't yet tracked by git"
 
-      - name: Comprobar opciones del graph publicadas
+      - name: Comprobar graph publicado
         run: |
-          grep -o '.\{0,80\}showTags.\{0,60\}' public/index.html | head -5 || echo "sin showTags en index.html"
+          echo "--- profundidad del graph (local y global) ---"
+          grep -o '.\{0,10\}depth&quot;:[-0-9]*' public/index.html | head -3 || true
+          echo -n "graph en la página de la etiqueta kanji (debe ser 0): "
+          grep -c "graph-container" public/tags/kanji.html || true
+          echo -n "graph en la página del kanji 日 (debe ser mayor que 0): "
+          grep -c "graph-container" public/kanji/日.html || true
 
       - name: Medir tamaño del sitio
         run: |
