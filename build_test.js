@@ -13,7 +13,6 @@ const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
 
-const CAMPOS_KANJI = [];
 const SIN_JLPT = "Sin nivel JLPT";
 
 const ETIQUETAS_IMG = {
@@ -88,27 +87,25 @@ function getValor(row, posiblesNombres) {
   return "";
 }
 
+function esVerdadero(val) {
+  const s = String(val).trim().toLowerCase();
+  return s === "1" || s === "true" || s === "sí" || s === "si";
+}
+
 // Limpiador y formateador de etimología (remueve ruido de Wiktionary / MediaWiki)
 function limpiarEtimologiaWiktionary(raw) {
   if (!raw) return "Sin datos registrados.";
 
   let texto = raw
-    // 1. Quitar marcas de imágenes y plantillas de MediaWiki
     .replace(/\[\[(?:[^\vert{}\]]*\Vert{})*([^\]]+)\]\]/g, "$1")
     .replace(/\{\{[^}]*\}\}/g, "")
     .replace(/(?:thumb|left|right)\|[^|]+\|/gi, "")
-    
-    // 2. Limpiar prefijos y códigos lingüísticos de Wiktionary
     .replace(/\b(zh|yue|cmn|hak|nan):\s*/gi, "")
     .replace(/\b(sit-pro|tbq-pro|sit-bai-pro|tbq-kuk-pro|tbq-lol-pro|mkh-vie-pro|mkh-mnc-pro|aav-pro|kar-pro|qfa-lic-pro)\s+\*/gi, "proto-*")
     .replace(/\b(bo|my|vi|und|omx|mnw|ssm|kac|cdm|lhu|lus|sti|bca)\s+/gi, "")
-    
-    // 3. Normalizar saltos de línea y viñetas
     .replace(/\s*\|\s*\*\s*/g, "\n\n- ")
     .replace(/\s*\|\s*/g, "\n\n")
     .replace(/\n{3,}/g, "\n\n")
-    
-    // 4. Alinear viñetas markdown y recortar bordes
     .replace(/^[ \t]*-[ \t]*/gm, "- ")
     .trim();
 
@@ -312,11 +309,36 @@ async function main() {
       "Componentes Reales",
       "Componentes",
     ]);
-    const kyujitai = getValor(row, ["Kyujitai (Kanji Antiguo)", "Kyujitai"]);
+    const kyujitaiAntiguo = getValor(row, ["Kyujitai (Kanji Antiguo)", "Kyujitai"]);
     
     // Extracción y saneamiento de la etimología
     const etimologiaRaw = getValor(row, ["Etimología", "Etimologia", "Etymology"]);
     const etimologia = limpiarEtimologiaWiktionary(etimologiaRaw);
+
+    // Nuevas columnas de clasificación y estatus
+    const esKyujitai = esVerdadero(getValor(row, ["Kyūjitai (旧字体)", "Kyujitai (旧字体)", "Kyujitai"]));
+    const esHyougaiji = esVerdadero(getValor(row, ["Hyōgaiji (表外字)", "Hyougaiji (表外字)", "Hyogaiji", "Hyougaiji"]));
+    const esJoyo = esVerdadero(getValor(row, ["Jōyō Kanji (常用漢字)", "Joyo Kanji (常用漢字)", "Joyo", "Jōyō"]));
+    const esJinmeiyo = esVerdadero(getValor(row, ["Jinmeiyō Kanji (人名用漢字)", "Jinmeiyo Kanji (人名用漢字)", "Jinmeiyo", "Jinmeiyō"]));
+    const jlptKanji = getValor(row, ["JLPT"]);
+
+    // Generar etiquetas (tags) para Quartz
+    const tags = ["kanji"];
+    if (esJoyo) tags.push("joyo");
+    if (esJinmeiyo) tags.push("jinmeiyo");
+    if (esHyougaiji) tags.push("hyougaiji");
+    if (esKyujitai) tags.push("kyuujitai");
+
+    const tagJlpt = etiquetaJlpt(jlptKanji);
+    if (tagJlpt) tags.push(tagJlpt);
+
+    // Texto descriptivo de clasificación para el cuerpo
+    const listaClasificacion = [];
+    if (esJoyo) listaClasificacion.push("Jōyō (常用漢字)");
+    if (esJinmeiyo) listaClasificacion.push("Jinmeiyō (人名用漢字)");
+    if (esHyougaiji) listaClasificacion.push("Hyōgaiji (表外字)");
+    if (esKyujitai) listaClasificacion.push("Kyūjitai (旧字体)");
+    const textoClasificacion = listaClasificacion.length > 0 ? listaClasificacion.join(" · ") : "Sin clasificar";
 
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
@@ -325,22 +347,25 @@ async function main() {
       comps.length > 0
         ? comps.map((c) => `[[componentes/${nombreSeguro(c)}|${c}]]`).join(", ")
         : "Ninguno";
-    const kyujitaiLink = kyujitai ? `[[kanji/${nombreSeguro(kyujitai)}|${kyujitai}]]` : "None";
+    const kyujitaiLink = kyujitaiAntiguo ? `[[kanji/${nombreSeguro(kyujitaiAntiguo)}|${kyujitaiAntiguo}]]` : "None";
 
     const md = `---
 title: "${yamlStr(kanji)}"
 tipo: kanji
 onyomi: "${yamlStr(onyomi)}"
 kunyomi: "${yamlStr(kunyomi)}"
+jlpt: "${yamlStr(jlptKanji || SIN_JLPT)}"
 tags:
-  - kanji
+${tags.map((t) => `  - ${t}`).join("\n")}
 ---
 
 # ${kanji}
 
 > **${significado}**
 
-**On:** ${onyomi || "—"}
+**Clasificación:** ${textoClasificacion}
+
+${jlptKanji && jlptKanji !== SIN_JLPT ? `**JLPT:** ${jlptKanji}\n` : ""}**On:** ${onyomi || "—"}
 
 **Kun:** ${kunyomi || "—"}
 
