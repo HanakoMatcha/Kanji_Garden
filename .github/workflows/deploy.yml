@@ -118,9 +118,9 @@ jobs:
       - name: Ajustar opciones del graph
         run: |
           f=quartz.config.default.yaml
-          sed -i '/source: "@quartz-community\/graph"/,/^  - source/ s|^    enabled: true$|    enabled: true\n    options:\n      localGraph:\n        depth: 3\n        showTags: true\n      globalGraph:\n        depth: 2\n        showTags: true|' "$f"
+          sed -i '/source: "@quartz-community\/graph"/,/^  - source/ s|^    enabled: true$|    enabled: true\n    options:\n      localGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.1\n        repelForce: 0.5\n        centerForce: 0.3\n        linkDistance: 35\n        fontSize: 0.6\n        opacityScale: 1\n        removeTags: ["kanji", "vocabulario"]\n        showTags: true\n      globalGraph:\n        drag: true\n        zoom: true\n        depth: -1\n        scale: 0.9\n        repelForce: 0.5\n        centerForce: 0.3\n        linkDistance: 35\n        fontSize: 0.6\n        opacityScale: 1\n        removeTags: ["kanji", "vocabulario"]\n        showTags: true|' "$f"
           echo "--- bloque del graph ---"
-          grep -n -A16 'quartz-community/graph' "$f" || true
+          grep -n -A22 'quartz-community/graph' "$f" || true
 
       - name: Cambiar favicon
         run: |
