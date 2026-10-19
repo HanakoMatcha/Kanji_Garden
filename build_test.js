@@ -187,6 +187,30 @@ function seccionPracticadorKanji(caracter) {
 `;
 }
 
+// Control dinámico de profundidad para que los kanji alcancen depth 2 sin desbordar etiquetas
+function scriptProfundidadKanji() {
+  return `
+<script>
+  (function() {
+    function ampliarGrafo() {
+      const graphContainer = document.querySelector('.graph-outer');
+      if (!graphContainer) return;
+      if (!window.location.pathname.includes('/tags/')) {
+        graphContainer.dataset.depth = "2";
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', ampliarGrafo);
+    } else {
+      ampliarGrafo();
+    }
+    document.addEventListener('nav', ampliarGrafo);
+  })();
+</script>
+`;
+}
+
 // ---------- Imágenes de kanjium ----------
 const indiceImagenes = new Map();
 
@@ -380,7 +404,8 @@ ${jlptKanji && jlptKanji !== SIN_JLPT ? `**JLPT:** ${jlptKanji}\n` : ""}**On:** 
 ## Etimología
 ${etimologia}
 ${seccionPracticadorKanji(kanji)}
-${seccionImagenes(kanji)}`;
+${seccionImagenes(kanji)}
+${scriptProfundidadKanji()}`;
 
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
