@@ -60,10 +60,12 @@ function filtrarComponentesValidos(texto) {
   return Array.from(new Set(texto.match(regex) || []));
 }
 
+// Normaliza el nivel JLPT a etiqueta limpia: "jlpt-n3", "jlpt-n1", etc.
 function etiquetaJlpt(valor) {
   if (!valor || valor === SIN_JLPT) return "";
   const s = String(valor)
     .toLowerCase()
+    .replace(/^jlpt[\s-_]*/i, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return s ? `jlpt-${s}` : "";
@@ -92,7 +94,7 @@ function esVerdadero(val) {
   return s === "1" || s === "true" || s === "sí" || s === "si";
 }
 
-// Limpiador y formateador de etimología (remueve ruido de Wiktionary / MediaWiki)
+// Limpiador y formateador de etimología
 function limpiarEtimologiaWiktionary(raw) {
   if (!raw) return "Sin datos registrados.";
 
@@ -315,7 +317,7 @@ async function main() {
     const etimologiaRaw = getValor(row, ["Etimología", "Etimologia", "Etymology"]);
     const etimologia = limpiarEtimologiaWiktionary(etimologiaRaw);
 
-    // Nuevas columnas de clasificación y estatus
+    // Columnas de estatus y taxonomía
     const esKyujitai = esVerdadero(getValor(row, ["Kyūjitai (旧字体)", "Kyujitai (旧字体)", "Kyujitai"]));
     const esHyougaiji = esVerdadero(getValor(row, ["Hyōgaiji (表外字)", "Hyougaiji (表外字)", "Hyogaiji", "Hyougaiji"]));
     const esJoyo = esVerdadero(getValor(row, ["Jōyō Kanji (常用漢字)", "Joyo Kanji (常用漢字)", "Joyo", "Jōyō"]));
@@ -332,7 +334,7 @@ async function main() {
     const tagJlpt = etiquetaJlpt(jlptKanji);
     if (tagJlpt) tags.push(tagJlpt);
 
-    // Texto descriptivo de clasificación para el cuerpo
+    // Texto descriptivo en la nota
     const listaClasificacion = [];
     if (esJoyo) listaClasificacion.push("Jōyō (常用漢字)");
     if (esJinmeiyo) listaClasificacion.push("Jinmeiyō (人名用漢字)");
