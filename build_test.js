@@ -187,25 +187,65 @@ function seccionPracticadorKanji(caracter) {
 `;
 }
 
-// Control dinámico de profundidad para que los kanji alcancen depth 2 sin desbordar etiquetas
-function scriptProfundidadKanji() {
+// Estilos adaptativos para imágenes oscuras y profundidad de grafo
+function scriptMejorasVisuales() {
   return `
+<style>
+  /* Base para las imágenes de escritura histórica */
+  .seccion-escritura img {
+    background: #ffffff;
+    border: 1px solid var(--lightgray);
+    border-radius: 6px;
+    padding: 6px;
+    transition: filter 0.3s ease, background 0.3s ease;
+    max-width: 150px;
+    height: auto;
+    display: inline-block;
+    margin: 4px;
+  }
+
+  /* Adaptación al Modo Oscuro */
+  :root[saved-theme="dark"] .seccion-escritura img,
+  html[theme="dark"] .seccion-escritura img,
+  body.dark .seccion-escritura img,
+  [data-theme="dark"] .seccion-escritura img {
+    filter: invert(0.92) hue-rotate(180deg) contrast(1.15);
+    background: #231634 !important;
+    border-color: var(--lightgray);
+  }
+</style>
+
 <script>
   (function() {
-    function ampliarGrafo() {
+    function aplicarMejoras() {
+      // 1. Grafo local expandido para notas de kanji
       const graphContainer = document.querySelector('.graph-outer');
-      if (!graphContainer) return;
-      if (!window.location.pathname.includes('/tags/')) {
+      if (graphContainer && !window.location.pathname.includes('/tags/')) {
         graphContainer.dataset.depth = "2";
       }
+
+      // 2. Identificar el bloque de escritura y marcar sus imágenes
+      const h2Elements = document.querySelectorAll('h2');
+      h2Elements.forEach(h2 => {
+        if (h2.textContent.trim().toLowerCase() === 'escritura') {
+          let nodo = h2.nextElementSibling;
+          while (nodo && nodo.tagName !== 'H2') {
+            nodo.classList.add('seccion-escritura');
+            nodo.querySelectorAll?.('img').forEach(img => {
+              img.parentElement.classList.add('seccion-escritura');
+            });
+            nodo = nodo.nextElementSibling;
+          }
+        }
+      });
     }
 
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', ampliarGrafo);
+      document.addEventListener('DOMContentLoaded', aplicarMejoras);
     } else {
-      ampliarGrafo();
+      aplicarMejoras();
     }
-    document.addEventListener('nav', ampliarGrafo);
+    document.addEventListener('nav', aplicarMejoras);
   })();
 </script>
 `;
@@ -318,7 +358,7 @@ async function main() {
     console.log(`Encabezados detectados en KANJI: ${Object.keys(kanjiRecords[0]).join(" | ")}`);
   }
 
-  // Mapa rápido de significados por si el componente es un kanji autónomo
+  // Diccionario en memoria para asignar significados a los componentes
   const mapaSignificados = new Map();
   kanjiRecords.forEach((row) => {
     const k = getValor(row, ["Kanji", "Character"]);
@@ -349,7 +389,7 @@ async function main() {
     const etimologiaRaw = getValor(row, ["Etimología", "Etimologia", "Etymology"]);
     const etimologia = limpiarEtimologiaWiktionary(etimologiaRaw);
 
-    // Columnas de estatus y taxonomía
+    // Columnas de taxonomía y estatus
     const esKyujitai = esVerdadero(getValor(row, ["Kyūjitai (旧字体)", "Kyujitai (旧字体)", "Kyujitai"]));
     const esHyougaiji = esVerdadero(getValor(row, ["Hyōgaiji (表外字)", "Hyougaiji (表外字)", "Hyogaiji", "Hyougaiji"]));
     const esJoyo = esVerdadero(getValor(row, ["Jōyō Kanji (常用漢字)", "Joyo Kanji (常用漢字)", "Joyo", "Jōyō"]));
@@ -366,7 +406,7 @@ async function main() {
     const tagJlpt = etiquetaJlpt(jlptKanji);
     if (tagJlpt) tags.push(tagJlpt);
 
-    // Texto descriptivo en la nota
+    // Texto descriptivo en el cuerpo
     const listaClasificacion = [];
     if (esJoyo) listaClasificacion.push("Jōyō (常用漢字)");
     if (esJinmeiyo) listaClasificacion.push("Jinmeiyō (人名用漢字)");
@@ -413,7 +453,7 @@ ${jlptKanji && jlptKanji !== SIN_JLPT ? `**JLPT:** ${jlptKanji}\n` : ""}**On:** 
 ${etimologia}
 ${seccionPracticadorKanji(kanji)}
 ${seccionImagenes(kanji)}
-${scriptProfundidadKanji()}`;
+${scriptMejorasVisuales()}`;
 
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
@@ -434,7 +474,9 @@ tags:
 > **${significadoComp}**
 
 Revisa los backlinks o el gráfico para ver los kanjis que contienen este componente.
-${seccionImagenes(comp)}`;
+${seccionImagenes(comp)}
+${scriptMejorasVisuales()}`;
+
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
   });
 
