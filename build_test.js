@@ -94,9 +94,9 @@ function limpiarEtimologiaWiktionary(raw) {
 
   let texto = raw
     // 1. Quitar marcas de imágenes y plantillas de MediaWiki
-    .replace(/\[\[(?:[^\vert{}\]]*\Vert{})*([^\]]+)\]\]/g, "$1") // enlaces [[archivo|texto]] -> texto
-    .replace(/\{\{[^}]*\}\}/g, "")                    // plantillas {{cog ...}}
-    .replace(/(?:thumb|left|right)\|[^|]+\|/gi, "")   // fragmentos tipo thumb|zh 女性|
+    .replace(/\[\[(?:[^\vert{}\]]*\Vert{})*([^\]]+)\]\]/g, "$1")
+    .replace(/\{\{[^}]*\}\}/g, "")
+    .replace(/(?:thumb|left|right)\|[^|]+\|/gi, "")
     
     // 2. Limpiar prefijos y códigos lingüísticos de Wiktionary
     .replace(/\b(zh|yue|cmn|hak|nan):\s*/gi, "")
@@ -104,8 +104,8 @@ function limpiarEtimologiaWiktionary(raw) {
     .replace(/\b(bo|my|vi|und|omx|mnw|ssm|kac|cdm|lhu|lus|sti|bca)\s+/gi, "")
     
     // 3. Normalizar saltos de línea y viñetas
-    .replace(/\s*\|\s*\*\s*/g, "\n\n- ")              // listas con pleca y asterisco: " | * "
-    .replace(/\s*\|\s*/g, "\n\n")                     // plecas sueltas a saltos de párrafo
+    .replace(/\s*\|\s*\*\s*/g, "\n\n- ")
+    .replace(/\s*\|\s*/g, "\n\n")
     .replace(/\n{3,}/g, "\n\n")
     
     // 4. Alinear viñetas markdown y recortar bordes
@@ -113,6 +113,79 @@ function limpiarEtimologiaWiktionary(raw) {
     .trim();
 
   return texto || "Sin datos registrados.";
+}
+
+// ---------- Practicador de kanji (Hanzi Writer) ----------
+function seccionPracticadorKanji(caracter) {
+  const containerId = `kanji-quiz-${caracter.codePointAt(0)}`;
+
+  return `
+## Práctica de trazo
+
+<div class="kanji-quiz-container" style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 1.5rem 0; padding: 1.2rem; background: rgba(0,0,0,0.03); border: 1px solid var(--lightgray); border-radius: 8px;">
+  <div id="${containerId}" style="background: var(--light); border: 1px solid var(--gray); border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"></div>
+  <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+    <button type="button" id="btn-quiz-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--secondary); background: var(--secondary); color: var(--light); cursor: pointer; font-size: 0.85rem; font-weight: bold;">Trazar</button>
+    <button type="button" id="btn-anim-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--gray); background: transparent; color: var(--dark); cursor: pointer; font-size: 0.85rem;">Ver orden</button>
+    <button type="button" id="btn-reset-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--gray); background: transparent; color: var(--dark); cursor: pointer; font-size: 0.85rem;">Limpiar</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
+<script>
+  (function() {
+    function initWriter() {
+      if (typeof HanziWriter === 'undefined') {
+        setTimeout(initWriter, 50);
+        return;
+      }
+      const el = document.getElementById('${containerId}');
+      if (!el || el.dataset.loaded) return;
+      el.dataset.loaded = "true";
+
+      const styles = getComputedStyle(document.documentElement);
+      const colorTrazo = styles.getPropertyValue('--dark').trim() || '#333333';
+      const colorGuia = styles.getPropertyValue('--lightgray').trim() || '#e0e0e0';
+      const colorAcento = styles.getPropertyValue('--tertiary').trim() || '#e993b5';
+
+      const writer = HanziWriter.create('${containerId}', '${caracter}', {
+        width: 180,
+        height: 180,
+        padding: 10,
+        showOutline: true,
+        strokeAnimationSpeed: 1.2,
+        delayBetweenStrokes: 120,
+        strokeColor: colorTrazo,
+        outlineColor: colorGuia,
+        drawingColor: colorAcento
+      });
+
+      document.getElementById('btn-quiz-${containerId}')?.addEventListener('click', () => {
+        writer.quiz({
+          showOutline: false,
+          showHintAfterMisses: 2
+        });
+      });
+
+      document.getElementById('btn-anim-${containerId}')?.addEventListener('click', () => {
+        writer.animateCharacter();
+      });
+
+      document.getElementById('btn-reset-${containerId}')?.addEventListener('click', () => {
+        writer.cancelQuiz();
+        writer.showOutline();
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initWriter);
+    } else {
+      initWriter();
+    }
+    document.addEventListener('nav', initWriter);
+  })();
+</script>
+`;
 }
 
 // ---------- Imágenes de kanjium ----------
@@ -279,6 +352,7 @@ tags:
 
 ## Etimología
 ${etimologia}
+${seccionPracticadorKanji(kanji)}
 ${seccionImagenes(kanji)}`;
 
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
