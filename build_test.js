@@ -238,87 +238,6 @@ function seccionPracticadorKanji(caracter) {
 `;
 }
 
-// Estilos adaptativos sin indentación para evitar que CommonMark lo procese como bloque de código Markdown
-function scriptMejorasVisuales() {
-  return `
-<style>
-.seccion-escritura, .contenedor-imagenes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin: 0.8rem 0;
-}
-
-.seccion-escritura img, .img-estilo {
-  background: #ffffff;
-  border: 1px solid var(--lightgray);
-  border-radius: 6px;
-  padding: 6px;
-  transition: filter 0.3s ease, background 0.3s ease;
-  max-width: 140px;
-  height: auto;
-  display: inline-block;
-}
-
-.contenedor-origen {
-  display: block !important;
-  width: 100%;
-}
-
-.seccion-escritura .img-origen, .img-origen {
-  max-width: 100% !important;
-  width: auto;
-  min-width: min(100%, 320px);
-  height: auto;
-  display: block;
-  padding: 10px;
-  margin: 0.5rem 0;
-}
-
-:root[saved-theme="dark"] .seccion-escritura img,
-:root[saved-theme="dark"] .img-estilo,
-:root[saved-theme="dark"] .img-origen,
-html[theme="dark"] .seccion-escritura img,
-body.dark .seccion-escritura img,
-[data-theme="dark"] .seccion-escritura img {
-  filter: invert(0.92) hue-rotate(180deg) contrast(1.15);
-  background: #231634 !important;
-  border-color: var(--lightgray);
-}
-</style>
-
-<script>
-(function() {
-  function aplicarMejoras() {
-    const graphContainer = document.querySelector('.graph-outer');
-    if (graphContainer && !window.location.pathname.includes('/tags/')) {
-      graphContainer.dataset.depth = "2";
-    }
-
-    const h2Elements = document.querySelectorAll('h2');
-    h2Elements.forEach(h2 => {
-      if (h2.textContent.trim().toLowerCase() === 'escritura') {
-        let nodo = h2.nextElementSibling;
-        while (nodo && nodo.tagName !== 'H2') {
-          nodo.classList.add('seccion-escritura');
-          nodo = nodo.nextElementSibling;
-        }
-      }
-    });
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', aplicarMejoras);
-  } else {
-    aplicarMejoras();
-  }
-  document.addEventListener('nav', aplicarMejoras);
-})();
-</script>
-`;
-}
-
 // ---------- Imágenes de kanjium ----------
 const indiceImagenes = new Map();
 
@@ -524,8 +443,7 @@ ${jlptKanji && jlptKanji !== SIN_JLPT ? `**JLPT:** ${jlptKanji}\n` : ""}**On:** 
 ## Etimología
 ${etimologia}
 ${seccionPracticadorKanji(kanji)}
-${seccionImagenes(kanji)}
-${scriptMejorasVisuales()}`;
+${seccionImagenes(kanji)}`;
 
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
@@ -546,8 +464,7 @@ tags:
 > **${significadoComp}**
 
 Revisa los backlinks o el gráfico para ver los kanjis que contienen este componente.
-${seccionImagenes(comp)}
-${scriptMejorasVisuales()}`;
+${seccionImagenes(comp)}`;
 
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
   });
