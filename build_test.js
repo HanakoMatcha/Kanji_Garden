@@ -318,6 +318,14 @@ async function main() {
     console.log(`Encabezados detectados en KANJI: ${Object.keys(kanjiRecords[0]).join(" | ")}`);
   }
 
+  // Mapa rápido de significados por si el componente es un kanji autónomo
+  const mapaSignificados = new Map();
+  kanjiRecords.forEach((row) => {
+    const k = getValor(row, ["Kanji", "Character"]);
+    const s = getValor(row, ["Significado", "Meaning"]);
+    if (k && s) mapaSignificados.set(k, s);
+  });
+
   const componentesGlobales = new Set();
   let totalKanjis = 0;
 
@@ -410,9 +418,11 @@ ${scriptProfundidadKanji()}`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
-  // Notas de componentes
+  // Notas de componentes y radicales con significado
   const listaComponentes = Array.from(componentesGlobales);
   listaComponentes.forEach((comp) => {
+    const significadoComp = mapaSignificados.get(comp) || "Componente estructural / radical";
+
     const md = `---
 title: "${yamlStr(comp)}"
 tipo: componente
@@ -421,7 +431,9 @@ tags:
 ---
 # Componente: ${comp}
 
-Revisa los backlinks para ver kanjis con este componente.
+> **${significadoComp}**
+
+Revisa los backlinks o el gráfico para ver los kanjis que contienen este componente.
 ${seccionImagenes(comp)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
   });
