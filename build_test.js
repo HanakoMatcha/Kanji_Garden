@@ -122,7 +122,8 @@ function seccionPracticadorKanji(caracter) {
 ## Práctica de trazo
 
 <div class="kanji-quiz-container" style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 1.5rem 0; padding: 1.2rem; background: rgba(0,0,0,0.03); border: 1px solid var(--lightgray); border-radius: 8px;">
-  <div id="${containerId}" style="background: var(--light); border: 1px solid var(--gray); border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"></div>
+  <div id="${containerId}" style="border: 2px solid var(--gray); border-radius: 8px; box-shadow: inset 0 0 10px rgba(0,0,0,0.04); position: relative; width: 180px; height: 180px;"></div>
+  
   <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
     <button type="button" id="btn-quiz-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--secondary); background: var(--secondary); color: var(--light); cursor: pointer; font-size: 0.85rem; font-weight: bold;">Trazar</button>
     <button type="button" id="btn-anim-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--gray); background: transparent; color: var(--dark); cursor: pointer; font-size: 0.85rem;">Ver orden</button>
@@ -133,47 +134,92 @@ function seccionPracticadorKanji(caracter) {
 <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
 <script>
   (function() {
+    let writerInstance = null;
+
+    function getThemePalette() {
+      const isDark = document.documentElement.getAttribute('saved-theme') === 'dark' ||
+                     document.documentElement.getAttribute('theme') === 'dark' ||
+                     document.body.classList.contains('dark') ||
+                     document.documentElement.classList.contains('dark');
+
+      if (isDark) {
+        return {
+          background: '#231634',
+          strokeColor: '#f5f0fb',
+          outlineColor: '#4d3b63',
+          drawingColor: '#ff4fd8',
+          radicalColor: '#5dff9a'
+        };
+      } else {
+        return {
+          background: '#ffffff',
+          strokeColor: '#3e2a1e',
+          outlineColor: '#bfae93',
+          drawingColor: '#d64d7c',
+          radicalColor: '#6a8f58'
+        };
+      }
+    }
+
     function initWriter() {
       if (typeof HanziWriter === 'undefined') {
         setTimeout(initWriter, 50);
         return;
       }
       const el = document.getElementById('${containerId}');
-      if (!el || el.dataset.loaded) return;
-      el.dataset.loaded = "true";
+      if (!el) return;
 
-      const styles = getComputedStyle(document.documentElement);
-      const colorTrazo = styles.getPropertyValue('--dark').trim() || '#333333';
-      const colorGuia = styles.getPropertyValue('--lightgray').trim() || '#e0e0e0';
-      const colorAcento = styles.getPropertyValue('--tertiary').trim() || '#e993b5';
+      el.innerHTML = '';
+      
+      const p = getThemePalette();
+      el.style.backgroundColor = p.background;
 
-      const writer = HanziWriter.create('${containerId}', '${caracter}', {
+      writerInstance = HanziWriter.create('${containerId}', '${caracter}', {
         width: 180,
         height: 180,
-        padding: 10,
+        padding: 12,
         showOutline: true,
         strokeAnimationSpeed: 1.2,
         delayBetweenStrokes: 120,
-        strokeColor: colorTrazo,
-        outlineColor: colorGuia,
-        drawingColor: colorAcento
+        strokeColor: p.strokeColor,
+        outlineColor: p.outlineColor,
+        drawingColor: p.drawingColor,
+        radicalColor: p.radicalColor,
+        highlightColor: p.drawingColor,
+        showCharacter: true
       });
 
-      document.getElementById('btn-quiz-${containerId}')?.addEventListener('click', () => {
-        writer.quiz({
-          showOutline: false,
-          showHintAfterMisses: 2
+      const btnQuiz = document.getElementById('btn-quiz-${containerId}');
+      const btnAnim = document.getElementById('btn-anim-${containerId}');
+      const btnReset = document.getElementById('btn-reset-${containerId}');
+
+      if (btnQuiz && !btnQuiz.dataset.bound) {
+        btnQuiz.dataset.bound = "true";
+        btnQuiz.addEventListener('click', () => {
+          if (!writerInstance) return;
+          writerInstance.quiz({
+            showOutline: true,
+            showHintAfterMisses: 1
+          });
         });
-      });
+      }
 
-      document.getElementById('btn-anim-${containerId}')?.addEventListener('click', () => {
-        writer.animateCharacter();
-      });
+      if (btnAnim && !btnAnim.dataset.bound) {
+        btnAnim.dataset.bound = "true";
+        btnAnim.addEventListener('click', () => {
+          if (writerInstance) writerInstance.animateCharacter();
+        });
+      }
 
-      document.getElementById('btn-reset-${containerId}')?.addEventListener('click', () => {
-        writer.cancelQuiz();
-        writer.showOutline();
-      });
+      if (btnReset && !btnReset.dataset.bound) {
+        btnReset.dataset.bound = "true";
+        btnReset.addEventListener('click', () => {
+          if (!writerInstance) return;
+          writerInstance.cancelQuiz();
+          writerInstance.showCharacter();
+          writerInstance.showOutline();
+        });
+      }
     }
 
     if (document.readyState === 'loading') {
@@ -182,6 +228,11 @@ function seccionPracticadorKanji(caracter) {
       initWriter();
     }
     document.addEventListener('nav', initWriter);
+
+    const themeObserver = new MutationObserver(() => {
+      initWriter();
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['saved-theme', 'theme', 'class'] });
   })();
 </script>
 `;
@@ -191,7 +242,6 @@ function seccionPracticadorKanji(caracter) {
 function scriptMejorasVisuales() {
   return `
 <style>
-  /* Base para las imágenes de escritura histórica */
   .seccion-escritura img {
     background: #ffffff;
     border: 1px solid var(--lightgray);
@@ -204,7 +254,6 @@ function scriptMejorasVisuales() {
     margin: 4px;
   }
 
-  /* Adaptación al Modo Oscuro */
   :root[saved-theme="dark"] .seccion-escritura img,
   html[theme="dark"] .seccion-escritura img,
   body.dark .seccion-escritura img,
@@ -218,13 +267,11 @@ function scriptMejorasVisuales() {
 <script>
   (function() {
     function aplicarMejoras() {
-      // 1. Grafo local expandido para notas de kanji
       const graphContainer = document.querySelector('.graph-outer');
       if (graphContainer && !window.location.pathname.includes('/tags/')) {
         graphContainer.dataset.depth = "2";
       }
 
-      // 2. Identificar el bloque de escritura y marcar sus imágenes
       const h2Elements = document.querySelectorAll('h2');
       h2Elements.forEach(h2 => {
         if (h2.textContent.trim().toLowerCase() === 'escritura') {
