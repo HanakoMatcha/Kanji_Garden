@@ -118,7 +118,7 @@ jobs:
       - name: Ajustar opciones del graph
         run: |
           f=quartz.config.default.yaml
-          sed -i '/source: "@quartz-community\/graph"/,/^  - source/ s|^    enabled: true$|    enabled: true\n    options:\n      localGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.1\n        repelForce: 0.6\n        centerForce: 0.3\n        linkDistance: 45\n        fontSize: 0.6\n        opacityScale: 1\n        removeTags: ["kanji", "vocabulario"]\n        showTags: true\n      globalGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.0\n        repelForce: 0.5\n        centerForce: 0.4\n        linkDistance: 50\n        fontSize: 0.5\n        opacityScale: 0.9\n        removeTags: ["kanji", "vocabulario", "radical"]\n        showTags: true|' "$f"
+          sed -i '/source: "@quartz-community\/graph"/,/^  - source/ s|^    enabled: true$|    enabled: true\n    options:\n      localGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.1\n        repelForce: 0.6\n        centerForce: 0.3\n        linkDistance: 45\n        fontSize: 0.6\n        opacityScale: 1\n        removeTags: ["kanji", "vocabulario", "radical"]\n        showTags: true\n      globalGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.0\n        repelForce: 0.5\n        centerForce: 0.4\n        linkDistance: 50\n        fontSize: 0.5\n        opacityScale: 0.9\n        removeTags: ["kanji", "vocabulario", "radical"]\n        showTags: true|' "$f"
           echo "--- bloque del graph ---"
           grep -n -A22 'quartz-community/graph' "$f" || true
 
@@ -142,6 +142,59 @@ jobs:
             echo "Parcheando límite de nodos a 45 en: $TARGET"
             sed -i -E 's/(nodes\s*=\s*[^;]+);/\1.slice(0, 45);/g' "$TARGET" || true
           fi
+
+      - name: Inyectar estilos personalizados en custom.scss
+        run: |
+          mkdir -p quartz/styles
+          cat << 'EOF' >> quartz/styles/custom.scss
+
+          /* --- Adaptación visual de escritura histórica y origen --- */
+          .seccion-escritura, .contenedor-imagenes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin: 0.8rem 0;
+          }
+
+          .seccion-escritura img, .img-estilo {
+            background: #ffffff;
+            border: 1px solid var(--lightgray);
+            border-radius: 6px;
+            padding: 6px;
+            transition: filter 0.3s ease, background 0.3s ease;
+            max-width: 140px;
+            height: auto;
+            display: inline-block;
+          }
+
+          .contenedor-origen {
+            display: block !important;
+            width: 100%;
+          }
+
+          .seccion-escritura .img-origen, .img-origen {
+            max-width: 100% !important;
+            width: auto;
+            min-width: min(100%, 320px);
+            height: auto;
+            display: block;
+            padding: 10px;
+            margin: 0.5rem 0 !important;
+          }
+
+          /* Modo Oscuro: Inversión suave y fondo acoplado */
+          :root[saved-theme="dark"] .seccion-escritura img,
+          :root[saved-theme="dark"] .img-estilo,
+          :root[saved-theme="dark"] .img-origen,
+          html[theme="dark"] .seccion-escritura img,
+          body.dark .seccion-escritura img,
+          [data-theme="dark"] .seccion-escritura img {
+            filter: invert(0.92) hue-rotate(180deg) contrast(1.15);
+            background: #231634 !important;
+            border-color: var(--lightgray);
+          }
+          EOF
 
       - name: Compilar Quartz
         shell: bash
