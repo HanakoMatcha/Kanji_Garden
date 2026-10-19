@@ -238,23 +238,49 @@ function seccionPracticadorKanji(caracter) {
 `;
 }
 
-// Estilos adaptativos para imágenes oscuras y profundidad de grafo
+// Estilos adaptativos con soporte diferenciado para origen vs estilos compactos
 function scriptMejorasVisuales() {
   return `
 <style>
-  .seccion-escritura img {
+  /* Base para contenedores */
+  .seccion-escritura, .contenedor-imagenes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 0.8rem 0;
+  }
+
+  /* Sellos y estilos individuales (compactos) */
+  .seccion-escritura img, .img-estilo {
     background: #ffffff;
     border: 1px solid var(--lightgray);
     border-radius: 6px;
     padding: 6px;
     transition: filter 0.3s ease, background 0.3s ease;
-    max-width: 150px;
+    max-width: 140px;
     height: auto;
     display: inline-block;
-    margin: 4px;
   }
 
+  /* Diagramas de evolución y Origen (ancho completo y legibles) */
+  .contenedor-origen {
+    display: block !important;
+  }
+  .seccion-escritura .img-origen, .img-origen {
+    max-width: 100% !important;
+    width: auto;
+    min-width: min(100%, 320px);
+    height: auto;
+    display: block;
+    padding: 10px;
+    margin: 0 auto;
+  }
+
+  /* Adaptación al Modo Oscuro */
   :root[saved-theme="dark"] .seccion-escritura img,
+  :root[saved-theme="dark"] .img-estilo,
+  :root[saved-theme="dark"] .img-origen,
   html[theme="dark"] .seccion-escritura img,
   body.dark .seccion-escritura img,
   [data-theme="dark"] .seccion-escritura img {
@@ -278,9 +304,6 @@ function scriptMejorasVisuales() {
           let nodo = h2.nextElementSibling;
           while (nodo && nodo.tagName !== 'H2') {
             nodo.classList.add('seccion-escritura');
-            nodo.querySelectorAll?.('img').forEach(img => {
-              img.parentElement.classList.add('seccion-escritura');
-            });
             nodo = nodo.nextElementSibling;
           }
         }
@@ -367,12 +390,16 @@ function seccionImagenes(caracter) {
   let md = "\n## Escritura\n";
   for (const carpeta of carpetas) {
     const etiqueta = ETIQUETAS_IMG[carpeta] || carpeta;
+    const esOrigen = carpeta === "origin";
+    const claseTipo = esOrigen ? "img-origen" : "img-estilo";
     const items = porCarpeta.get(carpeta).sort((a, b) => a.archivo.localeCompare(b.archivo));
+
     const imgs = items.map((it) => {
       const url = `${ASSETS_CDN}/${it.ruta.split("/").map(encodeURIComponent).join("/")}`;
-      return `![${caracter} ${etiqueta}](${url})`;
+      return `<img src="${url}" alt="${caracter} ${etiqueta}" class="${claseTipo}" loading="lazy" />`;
     });
-    md += `\n### ${etiqueta}\n${imgs.join(" ")}\n`;
+
+    md += `\n### ${etiqueta}\n<div class="contenedor-imagenes ${esOrigen ? 'contenedor-origen' : 'contenedor-estilos'}">\n${imgs.join("\n")}\n</div>\n`;
   }
   return md;
 }
