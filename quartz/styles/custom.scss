@@ -1,0 +1,17 @@
+/* --- Ajuste estético del contenedor del Grafo --- */
+.graph {
+  border: 1px solid var(--lightgray) !important;
+  border-radius: 10px !important;
+  background: rgba(0, 0, 0, 0.15) !important;
+  backdrop-filter: blur(4px);
+  overflow: hidden;
+}
+
+.graph > .graph-outer {
+  height: 260px !important; /* Reduce la altura vacía excesiva */
+}
+
+/* Ocultar metadatos en la portada cuando se active showDate: false */
+body[data-slug="index"] .content-meta {
+  display: none !important;
+}
