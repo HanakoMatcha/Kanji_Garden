@@ -22,7 +22,7 @@ const ETIQUETAS_IMG = {
   sousho: "Sōsho (cursiva)",
   kso_images: "KSO",
 };
- ORDEN_IMG = ["origin", "tensho", "gyosho", "sousho", "kso_images"];
+const ORDEN_IMG = ["origin", "tensho", "gyosho", "sousho", "kso_images"];
 
 const CONTENT_DIR = "./content";
 
@@ -547,7 +547,7 @@ ${bloqueTraducciones}
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
-// 3. Portada principal
+  // 3. Portada principal
   const indexMd = `---
 title: "Inicio"
 showDate: false
@@ -600,7 +600,7 @@ Base de datos viva e interconectada a partir de Google Sheets.
 
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
-  console.log(`¡Listo! ${totalKanjis} kanjis, ${listaComponentes.length} componentes,${totalVocab} palabras.`);
+  console.log(`¡Listo! ${totalKanjis} kanjis, ${listaComponentes.length} componentes, ${totalVocab} palabras.`);
 }
 
 main();
