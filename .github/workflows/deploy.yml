@@ -148,51 +148,71 @@ jobs:
           mkdir -p quartz/styles
           cat << 'EOF' >> quartz/styles/custom.scss
 
-          /* --- Adaptación visual de escritura histórica y origen --- */
+          /* --- Contenedor de glifos e imágenes históricas --- */
           .seccion-escritura, .contenedor-imagenes {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 16px;
             align-items: center;
-            margin: 0.8rem 0;
+            margin: 1.2rem 0;
           }
 
-          .seccion-escritura img, .img-estilo {
-            background: #ffffff;
-            border: 1px solid var(--lightgray);
-            border-radius: 6px;
-            padding: 6px;
-            transition: filter 0.3s ease, background 0.3s ease;
-            max-width: 140px;
-            height: auto;
+          /* Modo Claro: Sin bordes ni marcos; mezcla transparente sobre papel cálido */
+          .seccion-escritura img, .img-estilo, .img-origen {
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            mix-blend-mode: multiply;
+            transition: opacity 0.2s ease;
             display: inline-block;
+            height: auto;
           }
 
-          .contenedor-origen {
-            display: block !important;
-            width: 100%;
+          .img-estilo {
+            max-width: 130px;
           }
 
-          .seccion-escritura .img-origen, .img-origen {
+          .img-origen {
             max-width: 100% !important;
             width: auto;
             min-width: min(100%, 320px);
-            height: auto;
             display: block;
-            padding: 10px;
             margin: 0.5rem 0 !important;
           }
 
-          /* Modo Oscuro: Inversión suave y fondo acoplado */
+          /* Modo Oscuro: Trazos blancos flotando directamente sobre el fondo púrpura */
           :root[saved-theme="dark"] .seccion-escritura img,
           :root[saved-theme="dark"] .img-estilo,
           :root[saved-theme="dark"] .img-origen,
           html[theme="dark"] .seccion-escritura img,
+          html[theme="dark"] .img-estilo,
+          html[theme="dark"] .img-origen,
           body.dark .seccion-escritura img,
           [data-theme="dark"] .seccion-escritura img {
-            filter: invert(0.92) hue-rotate(180deg) contrast(1.15);
-            background: #231634 !important;
-            border-color: var(--lightgray);
+            filter: invert(1) contrast(1.1) !important;
+            mix-blend-mode: screen !important;
+            background: transparent !important;
+            border: none !important;
+          }
+
+          /* Ajuste al contenedor del grafo en la columna derecha */
+          .graph {
+            border: 1px solid var(--lightgray) !important;
+            border-radius: 8px !important;
+            background: rgba(0, 0, 0, 0.12) !important;
+            backdrop-filter: blur(3px);
+            overflow: hidden;
+          }
+
+          .graph > .graph-outer {
+            height: 260px !important;
+          }
+
+          /* Ocultar metadatos (fecha y tiempo de lectura) en la portada */
+          body[data-slug="index"] .content-meta {
+            display: none !important;
           }
           EOF
 
