@@ -9,7 +9,7 @@ export const defaultContentPageLayout: PageLayout = {
     Component.Explorer({
       title: "Explorador",
       folderDefaultState: "collapsed", // o "open" si prefieres ver todo desplegado
-      useSavedFolderState: true,
+      useSavedFolderState: false,
     }),
   ],
   right: [
