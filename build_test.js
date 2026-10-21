@@ -547,7 +547,7 @@ ${bloqueTraducciones}
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
- // 3. Portada principal con tarjetas, metadatos limpios y atajos JLPT/taxonomía
+// 3. Portada principal
   const indexMd = `---
 title: "Inicio"
 showDate: false
@@ -597,6 +597,10 @@ Base de datos viva e interconectada a partir de Google Sheets.
   <a href="./tags/hyougaiji" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">Hyōgaiji (表外字)</a>
 </div>
 `;
+
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
-  
+
+  console.log(`¡Listo! ${totalKanjis} kanjis, ${listaComponentes.length} componentes,${totalVocab} palabras.`);
+}
+
 main();
