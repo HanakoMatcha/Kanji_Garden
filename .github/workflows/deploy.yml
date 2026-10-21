@@ -8,7 +8,6 @@ on:
 permissions:
   contents: write
 
-# Cancela ejecuciones en cola u obsoletas si se dispara una nueva
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -197,17 +196,35 @@ jobs:
             border: none !important;
           }
 
-          /* Ajuste al contenedor del grafo en la columna derecha */
+          /* Ajuste estético y alineación del Graph View */
           .graph {
-            border: 1px solid var(--lightgray) !important;
-            border-radius: 8px !important;
-            background: rgba(0, 0, 0, 0.12) !important;
-            backdrop-filter: blur(3px);
-            overflow: hidden;
+            border: none !important;
+            background: transparent !important;
+            padding: 0 !important;
+            overflow: visible !important;
+          }
+
+          .graph > h3 {
+            margin: 0 0 0.5rem 0 !important;
+            font-size: 1rem !important;
           }
 
           .graph > .graph-outer {
+            box-sizing: border-box !important;
+            width: 100% !important;
             height: 260px !important;
+            border: 1px solid var(--lightgray) !important;
+            border-radius: 8px !important;
+            background: rgba(0, 0, 0, 0.15) !important;
+            backdrop-filter: blur(3px);
+            overflow: hidden !important;
+            position: relative !important;
+          }
+
+          .graph > .graph-outer canvas {
+            display: block !important;
+            width: 100% !important;
+            height: 100% !important;
           }
 
           /* Ocultar metadatos (fecha y tiempo de lectura) en la portada */
