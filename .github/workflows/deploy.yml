@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
 
+# Cancela ejecuciones en cola u obsoletas si se dispara una nueva
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -227,11 +228,6 @@ jobs:
             height: 100% !important;
           }
 
-          /* Ocultar metadatos (fecha y tiempo de lectura) en la portada */
-          body[data-slug="index"] .content-meta {
-            display: none !important;
-          }
-
           /* Ocultar Table of Contents y metadatos en la portada */
           body[data-slug="index"] .toc,
           body[data-slug="index"] .content-meta {
@@ -257,6 +253,16 @@ jobs:
             background: var(--secondary) !important;
             color: var(--light) !important;
             box-shadow: 0 0 10px var(--secondary);
+          }
+
+          /* --- Kanji Hero: Agrandar el título principal del kanji --- */
+          .article-title {
+            font-size: 4.5rem !important;
+            line-height: 1.1 !important;
+            font-weight: 700 !important;
+            color: var(--secondary) !important;
+            text-shadow: 0 0 16px rgba(93, 255, 154, 0.4) !important;
+            margin: 0.5rem 0 1rem 0 !important;
           }
           EOF
 
