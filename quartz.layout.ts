@@ -34,9 +34,9 @@ export const defaultContentPageLayout: PageLayout = {
       folderDefaultState: "collapsed",
       useSavedFolderState: false,
       filterFn: (node) => {
-        // Oculta archivos individuales dentro de vocab y kanji en la barra
-        if (!node.isFolder && (node.slug?.startsWith("vocab/") || node.slug?.startsWith("kanji/"))) {
-          return false
+// Si no es carpeta y está dentro de vocab, kanji o componentes, no lo metas al árbol
+        if (!node.isFolder  { 
+            return false
         }
         return true
       },
