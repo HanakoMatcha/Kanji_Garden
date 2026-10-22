@@ -55,6 +55,7 @@ export const defaultListPageLayout: PageLayout = {
     Component.Breadcrumbs(),
     Component.ArticleTitle(),
     Component.ContentMeta(),
+    Component.CategoryFilters(), // <-- Inyecta los botones justo antes de la lista
   ],
   left: [
     Component.PageTitle(),
