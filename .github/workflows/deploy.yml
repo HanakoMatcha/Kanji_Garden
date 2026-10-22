@@ -434,7 +434,7 @@ jobs:
 
       - name: Inyectar botones de filtro en HTML de listados y tags
         run: |
-          cat << 'INJECTOR_EOF' > inyectar_filtros.js
+          cat << 'INJECTOR_EOF' > inyectar_filtros.cjs
           const fs = require("fs");
 
           const scriptFiltros = `
@@ -532,8 +532,8 @@ jobs:
           procesarArchivos("public/tags");
           INJECTOR_EOF
 
-          node inyectar_filtros.js
-          rm inyectar_filtros.js
+          node inyectar_filtros.cjs
+          rm inyectar_filtros.cjs
           
       - name: Comprobar graph publicado
         run: |
