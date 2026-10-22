@@ -308,6 +308,10 @@ jobs:
           body[data-slug="index"] .content-meta {
             display: none !important;
           }
+          /* Regla estricta para ocultar filas filtradas superando el display: grid */
+          li.section-li.filtro-oculto {
+            display: none !important;
+          }
 
           /* Ocultar fechas innecesarias en listados de tags y carpetas */
           .section-li .meta,
