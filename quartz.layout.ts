@@ -29,7 +29,18 @@ export const defaultContentPageLayout: PageLayout = {
       showPreview: false,
     }),
     Component.Darkmode(),
-    // Component.Explorer() desactivado: evita inyectar miles de nodos en el DOM
+    Component.Explorer({
+  title: "Explorador",
+  folderDefaultState: "collapsed",
+  useSavedFolderState: false,
+  filterFn: (node) => {
+    // Si no es carpeta y está dentro de vocab o kanji, no lo metas al árbol
+    if (!node.isFolder && (node.slug?.startsWith("vocab/") || node.slug?.startsWith("kanji/"))) {
+      return false
+    }
+    return true
+  },
+}),
   ],
   right: [
     // Component.Graph() desactivado: previene el colapso por cálculo de físicas D3
