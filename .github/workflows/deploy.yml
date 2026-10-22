@@ -200,6 +200,13 @@ jobs:
             font-weight: bold;
             box-shadow: 0 0 8px rgba(93, 255, 154, 0.4);
           }
+          .btn-filtro:disabled {
+            opacity: 0.25 !important;
+            cursor: not-allowed !important;
+            pointer-events: none !important;
+            border-color: var(--lightgray) !important;
+            color: var(--gray) !important;
+          }
 
           .btn-limpiar-filtros {
             background: transparent;
