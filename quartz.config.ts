@@ -6,7 +6,7 @@ const config: QuartzConfig = {
     pageTitle: "Jardín de Kanji y Léxico",
     pageTitleSuffix: "",
     enableSPA: true,
-    enablePopovers: true,
+    enablePopovers: false, // Desactivado para evitar memory leaks por miles de pre-fetches
     analytics: null,
     locale: "es-ES",
     baseUrl: "HanakoMatcha.github.io/Kanji_Garden",
@@ -20,7 +20,7 @@ const config: QuartzConfig = {
         body: "Source Sans Pro",
         code: "IBM Plex Mono",
       },
-         colors: {
+      colors: {
         lightMode: {
           light: "#f7f5ee",       // fondo
           lightgray: "#e3e6d8",   // bordes
@@ -43,7 +43,6 @@ const config: QuartzConfig = {
           highlight: "rgba(155, 191, 138, 0.15)",
           textHighlight: "#b3aa0288",
         },
-      },
       },
     },
   },
@@ -74,11 +73,13 @@ const config: QuartzConfig = {
       Plugin.ContentPage(),
       Plugin.FolderPage(),
       Plugin.TagPage(),
-  Plugin.ContentIndex({
-  enableSiteMap: true,
-  enableRSS: true,
-  includeEmptyFiles: false,
-}),
+      Plugin.ContentIndex({
+        enableSiteMap: true,
+        enableRSS: false,          // Desactivado para no generar XMLs gigantescos
+        includeEmptyFiles: false,
+        rssFullHtml: false,
+        rssLimit: 50,
+      }),
       Plugin.Assets(),
       Plugin.Static(),
       Plugin.NotFoundPage(),
