@@ -4,7 +4,10 @@ export const defaultContentPageLayout: PageLayout = {
   left: [
     Component.PageTitle(),
     Component.MobileOnly(Component.Spacer()),
-    Component.Search(),
+    Component.Search({
+  enableHover: false,
+  showPreview: false, // Desactiva la vista previa pesada de contenido para bases de datos masivas
+}),
     Component.Darkmode(),
     Component.Explorer({
       title: "Explorador",
