@@ -263,7 +263,7 @@ jobs:
             box-shadow: 0 0 10px var(--secondary);
           }
 
-          /* --- Kanji Hero: Agrandar el título principal del kanji --- */
+          /* Kanji Hero: Título gigante para kanjis y componentes */
           .article-title {
             font-size: 4.5rem !important;
             line-height: 1.1 !important;
@@ -272,52 +272,58 @@ jobs:
             text-shadow: 0 0 16px rgba(93, 255, 154, 0.4) !important;
             margin: 0.5rem 0 1rem 0 !important;
           }
-          /* --- Alineación tabular limpia en listados de carpetas y tags --- */
+
+          /* --- Cuadrícula tabular de 2 columnas para carpetas y tags --- */
           .section-ul {
             padding-left: 0 !important;
             list-style: none !important;
           }
 
           .section-li {
-            display: flex !important;
+            display: grid !important;
+            grid-template-columns: 220px 1fr !important;
             align-items: center !important;
-            justify-content: flex-start !important;
-            gap: 24px !important;
-            margin-bottom: 0.8rem !important;
+            gap: 16px !important;
+            margin-bottom: 0.75rem !important;
           }
 
-          /* Columna 1: Ancho fijo para las palabras japonesas */
-          .section-li > .desc,
-          .section-li > a,
-          .section-li > p > a:first-child {
-            display: inline-block !important;
-            min-width: 180px !important;       /* Mantiene todas las palabras alineadas */
+          .section-li .section {
+            display: contents !important;
+          }
+
+          .section-li .desc {
+            grid-column: 1 !important;
+            margin: 0 !important;
+          }
+
+          .section-li .desc a {
             font-size: 1.15rem !important;
             font-weight: 600 !important;
-            flex-shrink: 0 !important;
+            display: inline-block !important;
+            word-break: break-word !important;
           }
 
-          /* Columna 2: Contenedor de tags perfectamente alineado */
           .section-li .tags {
-            display: inline-flex !important;
+            grid-column: 2 !important;
+            display: flex !important;
             flex-wrap: wrap !important;
-            gap: 6px !important;
+            gap: 8px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            list-style: none !important;
+            align-items: center !important;
+          }
+
+          .section-li .tags li {
             margin: 0 !important;
             padding: 0 !important;
             list-style: none !important;
           }
 
-          /* Quitar el punto de viñeta nativo de los tags en lista */
-          .section-li .tags li {
-            display: inline-block !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-
           .section-li .tags li::marker,
           .section-li .tags li::before {
-            content: none !important;
             display: none !important;
+            content: none !important;
           }
           EOF
 
