@@ -308,10 +308,6 @@ jobs:
           body[data-slug="index"] .content-meta {
             display: none !important;
           }
-          /* Regla estricta para ocultar filas filtradas superando el display: grid */
-          li.section-li.filtro-oculto {
-            display: none !important;
-          }
 
           /* Ocultar fechas innecesarias en listados de tags y carpetas */
           .section-li .meta,
@@ -410,6 +406,11 @@ jobs:
           .explorer-content ul li:not(:has(button)) {
             display: none !important;
           }
+
+          /* --- Regla estricta para ocultar filas filtradas por los botones --- */
+          li.section-li.filtro-oculto {
+            display: none !important;
+          }
           EOF
 
       - name: Compilar Quartz
@@ -441,86 +442,79 @@ jobs:
           cat << 'INJECTOR_EOF' > inyectar_filtros.cjs
           const fs = require("fs");
 
-          const scriptFiltros = `
-          <script>
-          document.addEventListener("DOMContentLoaded", () => {
-            function montarFiltros() {
-              const lista = document.querySelector(".section-ul");
-              if (!lista || document.querySelector(".contenedor-filtros-dinamicos")) return;
-
-              const items = Array.from(lista.querySelectorAll(".section-li"));
-              if (items.length === 0) return;
-
-              const panel = document.createElement("div");
-              panel.className = "contenedor-filtros-dinamicos";
-              panel.innerHTML = \`
-                <div class="grupo-filtro">
-                  <span class="etiqueta-filtro">JLPT:</span>
-                  <button type="button" class="btn-filtro" data-tag="jlpt-n5">N5</button>
-                  <button type="button" class="btn-filtro" data-tag="jlpt-n4">N4</button>
-                  <button type="button" class="btn-filtro" data-tag="jlpt-n3">N3</button>
-                  <button type="button" class="btn-filtro" data-tag="jlpt-n2">N2</button>
-                  <button type="button" class="btn-filtro" data-tag="jlpt-n1">N1</button>
-                  <button type="button" class="btn-limpiar-filtros" id="btn-reset-filtros">Limpiar</button>
-                </div>
-                <div class="grupo-filtro">
-                  <span class="etiqueta-filtro">Taxonomía:</span>
-                  <button type="button" class="btn-filtro" data-tag="joyo">Jōyō</button>
-                  <button type="button" class="btn-filtro" data-tag="jinmeiyo">Jinmeiyō</button>
-                  <button type="button" class="btn-filtro" data-tag="kyuujitai">Kyūjitai</button>
-                </div>
-                <div class="contador-resultados" id="lbl-contador">Mostrando \${items.length} entradas</div>
-              \`;
-
-              lista.parentNode.insertBefore(panel, lista);
-
-              const filtros = new Set();
-              const contador = document.getElementById("lbl-contador");
-
-              function aplicar() {
-                let v = 0;
-                const arr = Array.from(filtros);
-                items.forEach(it => {
-                  if (arr.length === 0) {
-                    it.classList.remove("filtro-oculto");
-                    v++;
-                    return;
-                  }
-                  const txt = Array.from(it.querySelectorAll(".tags a, .tags li")).map(e => e.textContent.replace("#","").trim().toLowerCase());
-                  const ok = arr.every(t => txt.includes(t));
-                  if (ok) {
-                    it.classList.remove("filtro-oculto");
-                    v++;
-                  } else {
-                    it.classList.add("filtro-oculto");
-                  }
-                });
-                contador.textContent = `Mostrando ${v} entradas (de ${items.length})`;
-              }
-
-              panel.querySelectorAll(".btn-filtro").forEach(b => {
-                b.onclick = () => {
-                  const tg = b.dataset.tag;
-                  if (filtros.has(tg)) { filtros.delete(tg); b.classList.remove("activo"); }
-                  else { filtros.add(tg); b.classList.add("activo"); }
-                  aplicar();
-                };
-              });
-
-              const btnReset = document.getElementById("btn-reset-filtros");
-              if (btnReset) {
-                btnReset.onclick = () => {
-                  filtros.clear();
-                  panel.querySelectorAll(".btn-filtro").forEach(b => b.classList.remove("activo"));
-                  aplicar();
-                };
-              }
-            }
-            montarFiltros();
-            document.addEventListener("nav", montarFiltros);
-          });
-          </script>
-          `;
+          const scriptFiltros = [
+            '<script>',
+            'document.addEventListener("DOMContentLoaded", function() {',
+            '  function montarFiltros() {',
+            '    const lista = document.querySelector(".section-ul");',
+            '    if (!lista || document.querySelector(".contenedor-filtros-dinamicos")) return;',
+            '    const items = Array.from(lista.querySelectorAll(".section-li"));',
+            '    if (items.length === 0) return;',
+            '    const panel = document.createElement("div");',
+            '    panel.className = "contenedor-filtros-dinamicos";',
+            '    panel.innerHTML = \'<div class="grupo-filtro">\' +',
+            '      \'<span class="etiqueta-filtro">JLPT:</span>\' +',
+            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n5">N5</button>\' +',
+            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n4">N4</button>\' +',
+            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n3">N3</button>\' +',
+            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n2">N2</button>\' +',
+            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n1">N1</button>\' +',
+            '      \'<button type="button" class="btn-limpiar-filtros" id="btn-reset-filtros">Limpiar</button>\' +',
+            '      \'</div>\' +',
+            '      \'<div class="grupo-filtro">\' +',
+            '      \'<span class="etiqueta-filtro">Taxonomía:</span>\' +',
+            '      \'<button type="button" class="btn-filtro" data-tag="joyo">Jōyō</button>\' +',
+            '      \'<button type="button" class="btn-filtro" data-tag="jinmeiyo">Jinmeiyō</button>\' +',
+            '      \'<button type="button" class="btn-filtro" data-tag="kyuujitai">Kyūjitai</button>\' +',
+            '      \'</div>\' +',
+            '      \'<div class="contador-resultados" id="lbl-contador">Mostrando \' + items.length + \' entradas</div>\';',
+            '    lista.parentNode.insertBefore(panel, lista);',
+            '    const filtros = new Set();',
+            '    const contador = document.getElementById("lbl-contador");',
+            '    function aplicar() {',
+            '      let v = 0;',
+            '      const arr = Array.from(filtros);',
+            '      items.forEach(function(it) {',
+            '        if (arr.length === 0) {',
+            '          it.classList.remove("filtro-oculto");',
+            '          v++;',
+            '          return;',
+            '        }',
+            '        const txt = Array.from(it.querySelectorAll(".tags a, .tags li")).map(function(e) {',
+            '          return e.textContent.replace("#","").trim().toLowerCase();',
+            '        });',
+            '        const ok = arr.every(function(t) { return txt.includes(t); });',
+            '        if (ok) {',
+            '          it.classList.remove("filtro-oculto");',
+            '          v++;',
+            '        } else {',
+            '          it.classList.add("filtro-oculto");',
+            '        }',
+            '      });',
+            '      contador.textContent = "Mostrando " + v + " entradas (de " + items.length + ")";',
+            '    }',
+            '    panel.querySelectorAll(".btn-filtro").forEach(function(b) {',
+            '      b.onclick = function() {',
+            '        const tg = b.dataset.tag;',
+            '        if (filtros.has(tg)) { filtros.delete(tg); b.classList.remove("activo"); }',
+            '        else { filtros.add(tg); b.classList.add("activo"); }',
+            '        aplicar();',
+            '      };',
+            '    });',
+            '    const btnReset = document.getElementById("btn-reset-filtros");',
+            '    if (btnReset) {',
+            '      btnReset.onclick = function() {',
+            '        filtros.clear();',
+            '        panel.querySelectorAll(".btn-filtro").forEach(function(b) { b.classList.remove("activo"); });',
+            '        aplicar();',
+            '      };',
+            '    }',
+            '  }',
+            '  montarFiltros();',
+            '  document.addEventListener("nav", montarFiltros);',
+            '});',
+            '</script>'
+          ].join("\n");
 
           function procesarArchivos(dir) {
             if (!fs.existsSync(dir)) return;
@@ -547,7 +541,7 @@ jobs:
 
           node inyectar_filtros.cjs
           rm inyectar_filtros.cjs
-          
+
       - name: Comprobar graph publicado
         run: |
           echo "--- profundidad del graph (local y global) ---"
