@@ -148,6 +148,81 @@ jobs:
           mkdir -p quartz/styles
           cat << 'EOF' >> quartz/styles/custom.scss
 
+          /* --- Barra de Filtros Interactiva para Listados --- */
+          .contenedor-filtros-dinamicos {
+            margin: 1.5rem 0 2rem 0;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--lightgray);
+            border-radius: 8px;
+          }
+
+          .grupo-filtro {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 0.6rem;
+          }
+
+          .grupo-filtro:last-child {
+            margin-bottom: 0;
+          }
+
+          .etiqueta-filtro {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: var(--gray);
+            min-width: 90px;
+          }
+
+          .btn-filtro {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--lightgray);
+            color: var(--darkgray);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+          }
+
+          .btn-filtro:hover {
+            border-color: var(--secondary);
+            color: var(--secondary);
+          }
+
+          .btn-filtro.activo {
+            background: var(--secondary) !important;
+            border-color: var(--secondary) !important;
+            color: var(--light) !important;
+            font-weight: bold;
+            box-shadow: 0 0 8px rgba(93, 255, 154, 0.4);
+          }
+
+          .btn-limpiar-filtros {
+            background: transparent;
+            border: 1px dashed var(--gray);
+            color: var(--gray);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            margin-left: auto;
+          }
+
+          .btn-limpiar-filtros:hover {
+            border-color: var(--tertiary);
+            color: var(--tertiary);
+          }
+
+          .contador-resultados {
+            font-size: 0.85rem;
+            color: var(--gray);
+            margin-top: 0.8rem;
+          }
+
           /* --- Contenedor de glifos e imágenes históricas --- */
           .seccion-escritura, .contenedor-imagenes {
             display: flex;
@@ -325,6 +400,90 @@ jobs:
             display: none !important;
             content: none !important;
           }
+          EOF
+
+      - name: Inyectar script de filtros combinables
+        run: |
+          mkdir -p quartz/components/scripts
+          cat << 'EOF' > quartz/components/scripts/filtros.inline.ts
+          document.addEventListener("nav", () => {
+            const path = window.location.pathname;
+            if (!path.includes("/kanji") && !path.includes("/vocab")) return;
+
+            const lista = document.querySelector(".section-ul");
+            if (!lista || document.querySelector(".contenedor-filtros-dinamicos")) return;
+
+            const items = Array.from(lista.querySelectorAll(".section-li"));
+            if (items.length === 0) return;
+
+            const panel = document.createElement("div");
+            panel.className = "contenedor-filtros-dinamicos";
+            panel.innerHTML = `
+              <div class="grupo-filtro">
+                <span class="etiqueta-filtro">Nivel JLPT:</span>
+                <button type="button" class="btn-filtro" data-tag="jlpt-n5">N5</button>
+                <button type="button" class="btn-filtro" data-tag="jlpt-n4">N4</button>
+                <button type="button" class="btn-filtro" data-tag="jlpt-n3">N3</button>
+                <button type="button" class="btn-filtro" data-tag="jlpt-n2">N2</button>
+                <button type="button" class="btn-filtro" data-tag="jlpt-n1">N1</button>
+                <button type="button" class="btn-limpiar-filtros" id="btn-reset-filtros">Limpiar filtros</button>
+              </div>
+              <div class="grupo-filtro">
+                <span class="etiqueta-filtro">Taxonomía:</span>
+                <button type="button" class="btn-filtro" data-tag="joyo">Jōyō</button>
+                <button type="button" class="btn-filtro" data-tag="jinmeiyo">Jinmeiyō</button>
+                <button type="button" class="btn-filtro" data-tag="kyuujitai">Kyūjitai</button>
+                <button type="button" class="btn-filtro" data-tag="hyougaiji">Hyōgaiji</button>
+              </div>
+              <div class="contador-resultados" id="lbl-contador">Mostrando ${items.length} entradas</div>
+            `;
+
+            lista.parentNode.insertBefore(panel, lista);
+
+            const filtrosSeleccionados = new Set();
+            const contador = document.getElementById("lbl-contador");
+
+            function aplicarFiltros() {
+              let visibles = 0;
+              const tagsArray = Array.from(filtrosSeleccionados);
+
+              items.forEach((item) => {
+                const itemTags = Array.from(item.querySelectorAll(".tags a, .tags li"))
+                  .map(el => el.textContent.replace("#", "").trim().toLowerCase());
+
+                const cumple = tagsArray.every(t => itemTags.includes(t));
+
+                if (cumple) {
+                  item.style.display = "";
+                  visibles++;
+                } else {
+                  item.style.display = "none";
+                }
+              });
+
+              contador.textContent = `Mostrando ${visibles} entradas (de ${items.length})`;
+            }
+
+            panel.querySelectorAll(".btn-filtro").forEach((btn) => {
+              btn.addEventListener("click", () => {
+                const tag = btn.dataset.tag;
+                if (filtrosSeleccionados.has(tag)) {
+                  filtrosSeleccionados.delete(tag);
+                  btn.classList.remove("activo");
+                } else {
+                  filtrosSeleccionados.add(tag);
+                  btn.classList.add("activo");
+                }
+                aplicarFiltros();
+              });
+            });
+
+            document.getElementById("btn-reset-filtros").addEventListener("click", () => {
+              filtrosSeleccionados.clear();
+              panel.querySelectorAll(".btn-filtro").forEach(b => b.classList.remove("activo"));
+              aplicarFiltros();
+            });
+          });
           EOF
 
       - name: Compilar Quartz
