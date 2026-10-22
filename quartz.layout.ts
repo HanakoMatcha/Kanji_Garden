@@ -1,7 +1,6 @@
 import { PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
-// Componentes compartidos en todas las páginas (encabezado y pie de página)
 export const sharedPageComponents: SharedLayout = {
   head: Component.Head(),
   header: [],
@@ -13,12 +12,13 @@ export const sharedPageComponents: SharedLayout = {
   }),
 }
 
-// Layout para páginas de contenido individuales (notas de kanji, artículos)
+// Para páginas individuales Y para carpetas con index.md
 export const defaultContentPageLayout: PageLayout = {
   beforeBody: [
     Component.Breadcrumbs(),
     Component.ArticleTitle(),
     Component.ContentMeta(),
+    Component.CategoryFilters(), // <-- Inyectado aquí también
     Component.TagList(),
   ],
   left: [
@@ -30,32 +30,31 @@ export const defaultContentPageLayout: PageLayout = {
     }),
     Component.Darkmode(),
     Component.Explorer({
-  title: "Explorador",
-  folderDefaultState: "collapsed",
-  useSavedFolderState: false,
-  filterFn: (node) => {
-    // Si no es carpeta y está dentro de vocab o kanji, no lo metas al árbol
-    if (!node.isFolder && (node.slug?.startsWith("vocab/") || node.slug?.startsWith("kanji/"))) {
-      return false
-    }
-    return true
-  },
-}),
+      title: "Explorador",
+      folderDefaultState: "collapsed",
+      useSavedFolderState: false,
+      filterFn: (node) => {
+        // Oculta archivos individuales dentro de vocab y kanji en la barra
+        if (!node.isFolder && (node.slug?.startsWith("vocab/") || node.slug?.startsWith("kanji/"))) {
+          return false
+        }
+        return true
+      },
+    }),
   ],
   right: [
-    // Component.Graph() desactivado: previene el colapso por cálculo de físicas D3
     Component.DesktopOnly(Component.TableOfContents()),
-    // Component.Backlinks() desactivado temporalmente para reducir cálculos en cliente
+    Component.Backlinks(),
   ],
 }
 
-// Layout para páginas de listas, carpetas y etiquetas
+// Para carpetas automáticas sin index.md y etiquetas
 export const defaultListPageLayout: PageLayout = {
   beforeBody: [
     Component.Breadcrumbs(),
     Component.ArticleTitle(),
     Component.ContentMeta(),
-    Component.CategoryFilters(), // <-- Inyecta los botones justo antes de la lista
+    Component.CategoryFilters(), // <-- Inyectado aquí
   ],
   left: [
     Component.PageTitle(),
@@ -65,6 +64,17 @@ export const defaultListPageLayout: PageLayout = {
       showPreview: false,
     }),
     Component.Darkmode(),
+    Component.Explorer({
+      title: "Explorador",
+      folderDefaultState: "collapsed",
+      useSavedFolderState: false,
+      filterFn: (node) => {
+        if (!node.isFolder && (node.slug?.startsWith("vocab/") || node.slug?.startsWith("kanji/"))) {
+          return false
+        }
+        return true
+      },
+    }),
   ],
   right: [],
 }
