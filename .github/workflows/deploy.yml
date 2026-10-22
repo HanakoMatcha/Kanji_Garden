@@ -400,6 +400,19 @@ jobs:
             display: none !important;
             content: none !important;
           }
+          /* --- Ocultar archivos individuales en el Explorer (solo dejar carpetas) --- */
+          #explorer-content ul li:not(:has(button)) {
+            display: none !important;
+          }
+          .explorer-content ul li:not(:has(button)) {
+            display: none !important;
+          }
+          /* Asegura que los títulos de carpetas sigan visibles */
+          .folder-outer {
+            display: block !important;
+          }
+
+          
           EOF
 
       - name: Inyectar script de filtros combinables
