@@ -547,11 +547,12 @@ ${bloqueTraducciones}
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
-  // 3. Portada principal
+// 3. Portada principal con tarjetas estilizadas, glow y chips diferenciados
   const indexMd = `---
 title: "Inicio"
 showDate: false
 showReadingTime: false
+showToc: false
 ---
 
 # Jardín Digital de Kanji y Léxico
@@ -559,45 +560,44 @@ showReadingTime: false
 Base de datos viva e interconectada a partir de Google Sheets.
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 2rem 0;">
-  <a href="./kanji/" style="text-decoration: none; padding: 18px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: border-color 0.2s ease;">
-    <div style="font-size: 1.8rem; margin-bottom: 6px;">漢</div>
-    <div style="font-weight: bold; font-size: 1.1rem; color: var(--secondary);">Kanjis</div>
+  <a href="./kanji/" class="card-dashboard" style="text-decoration: none; padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: all 0.2s ease;">
+    <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary); text-shadow: 0 0 14px rgba(93, 255, 154, 0.4);">漢</div>
+    <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Kanjis</div>
     <div style="font-size: 0.85rem; color: var(--gray);">${totalKanjis} entradas analizadas</div>
   </a>
 
-  <a href="./vocab/" style="text-decoration: none; padding: 18px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: border-color 0.2s ease;">
-    <div style="font-size: 1.8rem; margin-bottom: 6px;">語</div>
-    <div style="font-weight: bold; font-size: 1.1rem; color: var(--secondary);">Vocabulario</div>
+  <a href="./vocab/" class="card-dashboard" style="text-decoration: none; padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: all 0.2s ease;">
+    <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--tertiary); text-shadow: 0 0 14px rgba(255, 79, 216, 0.4);">語</div>
+    <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Vocabulario</div>
     <div style="font-size: 0.85rem; color: var(--gray);">${totalVocab} términos y lecturas</div>
   </a>
 
-  <a href="./componentes/" style="text-decoration: none; padding: 18px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: border-color 0.2s ease;">
-    <div style="font-size: 1.8rem; margin-bottom: 6px;">部</div>
-    <div style="font-weight: bold; font-size: 1.1rem; color: var(--secondary);">Radicales</div>
+  <a href="./componentes/" class="card-dashboard" style="text-decoration: none; padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: all 0.2s ease;">
+    <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary); text-shadow: 0 0 14px rgba(93, 255, 154, 0.4);">部</div>
+    <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Radicales</div>
     <div style="font-size: 0.85rem; color: var(--gray);">${listaComponentes.length} componentes glíficos</div>
   </a>
 </div>
 
 ### Exploración rápida por nivel (JLPT)
 
-<div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 1rem 0 2rem 0;">
-  <a href="./tags/jlpt-n5" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">N5</a>
-  <a href="./tags/jlpt-n4" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">N4</a>
-  <a href="./tags/jlpt-n3" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">N3</a>
-  <a href="./tags/jlpt-n2" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">N2</a>
-  <a href="./tags/jlpt-n1" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">N1</a>
+<div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 1rem 0 2rem 0;">
+  <a href="./tags/jlpt-n5" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N5</a>
+  <a href="./tags/jlpt-n4" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N4</a>
+  <a href="./tags/jlpt-n3" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N3</a>
+  <a href="./tags/jlpt-n2" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N2</a>
+  <a href="./tags/jlpt-n1" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N1</a>
 </div>
 
 ### Taxonomía de caracteres
 
 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 1rem 0;">
-  <a href="./tags/joyo" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">Jōyō (常用)</a>
-  <a href="./tags/jinmeiyo" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">Jinmeiyō (人名用)</a>
-  <a href="./tags/kyuujitai" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">Kyūjitai (旧字体)</a>
-  <a href="./tags/hyougaiji" style="padding: 6px 14px; border-radius: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--lightgray); text-decoration: none; font-weight: bold; color: var(--secondary);">Hyōgaiji (表外字)</a>
+  <a href="./tags/joyo" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Jōyō (常用)</a>
+  <a href="./tags/jinmeiyo" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Jinmeiyō (人名用)</a>
+  <a href="./tags/kyuujitai" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Kyūjitai (旧字体)</a>
+  <a href="./tags/hyougaiji" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Hyōgaiji (表外字)</a>
 </div>
 `;
-
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
   console.log(`¡Listo! ${totalKanjis} kanjis, ${listaComponentes.length} componentes, ${totalVocab} palabras.`);
