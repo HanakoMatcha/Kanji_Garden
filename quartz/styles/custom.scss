@@ -15,3 +15,11 @@
 body[data-slug="index"] .content-meta {
   display: none !important;
 }
+
+/* Ocultar fechas en páginas de etiquetas y listados de carpetas */
+          .section-li .meta,
+          .section-li time,
+          .page-listing .meta,
+          .page-listing time {
+            display: none !important;
+          }
