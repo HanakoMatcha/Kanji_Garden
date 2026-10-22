@@ -234,6 +234,14 @@ jobs:
             display: none !important;
           }
 
+          /* Ocultar fechas innecesarias en listados de tags y carpetas */
+          .section-li .meta,
+          .section-li time,
+          .page-listing .meta,
+          .page-listing time {
+            display: none !important;
+          }
+
           /* Hover animado para las tarjetas del Dashboard */
           .card-dashboard:hover {
             border-color: var(--secondary) !important;
@@ -272,6 +280,23 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx quartz build 2>&1 | grep -v "isn't yet tracked by git"
+
+      - name: Optimizar tamano de contentIndex.json
+        run: |
+          node -e '
+            const fs = require("fs");
+            const p = "public/static/contentIndex.json";
+            if (fs.existsSync(p)) {
+              console.log("Optimizando contentIndex.json...");
+              const data = JSON.parse(fs.readFileSync(p, "utf8"));
+              for (const slug in data) {
+                delete data[slug].content;
+              }
+              fs.writeFileSync(p, JSON.stringify(data));
+              const tam = (fs.statSync(p).size / (1024 * 1024)).toFixed(2);
+              console.log("Nuevo tamano optimizado: " + tam + " MB");
+            }
+          '
 
       - name: Comprobar graph publicado
         run: |
