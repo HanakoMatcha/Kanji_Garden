@@ -481,12 +481,21 @@ jobs:
                 let v = 0;
                 const arr = Array.from(filtros);
                 items.forEach(it => {
+                  if (arr.length === 0) {
+                    it.classList.remove("filtro-oculto");
+                    v++;
+                    return;
+                  }
                   const txt = Array.from(it.querySelectorAll(".tags a, .tags li")).map(e => e.textContent.replace("#","").trim().toLowerCase());
                   const ok = arr.every(t => txt.includes(t));
-                  it.style.display = ok ? "" : "none";
-                  if (ok) v++;
+                  if (ok) {
+                    it.classList.remove("filtro-oculto");
+                    v++;
+                  } else {
+                    it.classList.add("filtro-oculto");
+                  }
                 });
-                contador.textContent = \`Mostrando \${v} entradas (de \${items.length})\`;
+                contador.textContent = `Mostrando ${v} entradas (de ${items.length})`;
               }
 
               panel.querySelectorAll(".btn-filtro").forEach(b => {
