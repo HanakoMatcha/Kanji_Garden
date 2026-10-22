@@ -231,6 +231,33 @@ jobs:
           body[data-slug="index"] .content-meta {
             display: none !important;
           }
+
+          /* Ocultar Table of Contents y metadatos en la portada */
+          body[data-slug="index"] .toc,
+          body[data-slug="index"] .content-meta {
+            display: none !important;
+          }
+
+          /* Hover animado para las tarjetas del Dashboard */
+          .card-dashboard:hover {
+            border-color: var(--secondary) !important;
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.06) !important;
+          }
+
+          /* Hover para chips de JLPT (rosa neón) */
+          .chip-jlpt:hover {
+            background: var(--tertiary) !important;
+            color: var(--light) !important;
+            box-shadow: 0 0 10px var(--tertiary);
+          }
+
+          /* Hover para chips de Taxonomía (verde neón) */
+          .chip-tax:hover {
+            background: var(--secondary) !important;
+            color: var(--light) !important;
+            box-shadow: 0 0 10px var(--secondary);
+          }
           EOF
 
       - name: Compilar Quartz
