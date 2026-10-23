@@ -188,6 +188,14 @@ jobs:
             user-select: none;
           }
 
+          .btn-filtro:disabled {
+            opacity: 0.25 !important;
+            cursor: not-allowed !important;
+            pointer-events: none !important;
+            border-color: var(--lightgray) !important;
+            color: var(--gray) !important;
+          }
+
           .btn-filtro:hover {
             border-color: var(--secondary);
             color: var(--secondary);
@@ -199,13 +207,6 @@ jobs:
             color: var(--light) !important;
             font-weight: bold;
             box-shadow: 0 0 8px rgba(93, 255, 154, 0.4);
-          }
-          .btn-filtro:disabled {
-            opacity: 0.25 !important;
-            cursor: not-allowed !important;
-            pointer-events: none !important;
-            border-color: var(--lightgray) !important;
-            color: var(--gray) !important;
           }
 
           .btn-limpiar-filtros {
@@ -457,6 +458,15 @@ jobs:
             '    if (!lista || document.querySelector(".contenedor-filtros-dinamicos")) return;',
             '    const items = Array.from(lista.querySelectorAll(".section-li"));',
             '    if (items.length === 0) return;',
+            '',
+            '    // Precalcular etiquetas por cada elemento para filtrado ultrarrápido',
+            '    const dataItems = items.map(function(it) {',
+            '      const t = Array.from(it.querySelectorAll(".tags a, .tags li")).map(function(e) {',
+            '        return e.textContent.replace("#","").trim().toLowerCase();',
+            '      });',
+            '      return { el: it, tags: new Set(t) };',
+            '    });',
+            '',
             '    const panel = document.createElement("div");',
             '    panel.className = "contenedor-filtros-dinamicos";',
             '    panel.innerHTML = \'<div class="grupo-filtro">\' +',
@@ -472,50 +482,77 @@ jobs:
             '      \'<span class="etiqueta-filtro">Taxonomía:</span>\' +',
             '      \'<button type="button" class="btn-filtro" data-tag="joyo">Jōyō</button>\' +',
             '      \'<button type="button" class="btn-filtro" data-tag="jinmeiyo">Jinmeiyō</button>\' +',
+            '      \'<button type="button" class="btn-filtro" data-tag="hyougaiji">Hyougaiji</button>\' +',
             '      \'<button type="button" class="btn-filtro" data-tag="kyuujitai">Kyūjitai</button>\' +',
             '      \'</div>\' +',
             '      \'<div class="contador-resultados" id="lbl-contador">Mostrando \' + items.length + \' entradas</div>\';',
+            '',
             '    lista.parentNode.insertBefore(panel, lista);',
             '    const filtros = new Set();',
             '    const contador = document.getElementById("lbl-contador");',
-            '    function aplicar() {',
-            '      let v = 0;',
-            '      const arr = Array.from(filtros);',
-            '      items.forEach(function(it) {',
-            '        if (arr.length === 0) {',
-            '          it.classList.remove("filtro-oculto");',
-            '          v++;',
-            '          return;',
-            '        }',
-            '        const txt = Array.from(it.querySelectorAll(".tags a, .tags li")).map(function(e) {',
-            '          return e.textContent.replace("#","").trim().toLowerCase();',
-            '        });',
-            '        const ok = arr.every(function(t) { return txt.includes(t); });',
-            '        if (ok) {',
-            '          it.classList.remove("filtro-oculto");',
-            '          v++;',
+            '    const todosLosBotones = Array.from(panel.querySelectorAll(".btn-filtro"));',
+            '',
+            '    function actualizarDisponibilidadBotones(visibles) {',
+            '      const tagsDisponibles = new Set();',
+            '      visibles.forEach(function(d) {',
+            '        d.tags.forEach(function(t) { tagsDisponibles.add(t); });',
+            '      });',
+            '',
+            '      todosLosBotones.forEach(function(b) {',
+            '        const tg = b.dataset.tag;',
+            '        if (!filtros.has(tg)) {',
+            '          b.disabled = !tagsDisponibles.has(tg);',
             '        } else {',
-            '          it.classList.add("filtro-oculto");',
+            '          b.disabled = false;',
             '        }',
             '      });',
-            '      contador.textContent = "Mostrando " + v + " entradas (de " + items.length + ")";',
             '    }',
-            '    panel.querySelectorAll(".btn-filtro").forEach(function(b) {',
+            '',
+            '    function aplicar() {',
+            '      let visibles = [];',
+            '      const arr = Array.from(filtros);',
+            '',
+            '      dataItems.forEach(function(d) {',
+            '        const ok = arr.every(function(t) { return d.tags.has(t); });',
+            '        if (ok) {',
+            '          d.el.classList.remove("filtro-oculto");',
+            '          visibles.push(d);',
+            '        } else {',
+            '          d.el.classList.add("filtro-oculto");',
+            '        }',
+            '      });',
+            '',
+            '      contador.textContent = "Mostrando " + visibles.length + " entradas (de " + items.length + ")";',
+            '      actualizarDisponibilidadBotones(visibles);',
+            '    }',
+            '',
+            '    todosLosBotones.forEach(function(b) {',
             '      b.onclick = function() {',
             '        const tg = b.dataset.tag;',
-            '        if (filtros.has(tg)) { filtros.delete(tg); b.classList.remove("activo"); }',
-            '        else { filtros.add(tg); b.classList.add("activo"); }',
+            '        if (filtros.has(tg)) {',
+            '          filtros.delete(tg);',
+            '          b.classList.remove("activo");',
+            '        } else {',
+            '          filtros.add(tg);',
+            '          b.classList.add("activo");',
+            '        }',
             '        aplicar();',
             '      };',
             '    });',
+            '',
             '    const btnReset = document.getElementById("btn-reset-filtros");',
             '    if (btnReset) {',
             '      btnReset.onclick = function() {',
             '        filtros.clear();',
-            '        panel.querySelectorAll(".btn-filtro").forEach(function(b) { b.classList.remove("activo"); });',
+            '        todosLosBotones.forEach(function(b) {',
+            '          b.classList.remove("activo");',
+            '          b.disabled = false;',
+            '        });',
             '        aplicar();',
             '      };',
             '    }',
+            '',
+            '    actualizarDisponibilidadBotones(dataItems);',
             '  }',
             '  montarFiltros();',
             '  document.addEventListener("nav", montarFiltros);',
