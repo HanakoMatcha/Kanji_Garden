@@ -21,7 +21,7 @@ concurrency:
 env:
   # Versión del motor de Quartz (rama, tag o commit). Pon aquí un commit concreto
   # para que un cambio en Quartz no rompa tu build de un día para otro.
-  QUARTZ_REF: main
+  QUARTZ_REF: HEAD
 
 jobs:
   # ---------------------------------------------------------------
