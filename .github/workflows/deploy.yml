@@ -212,73 +212,140 @@ jobs:
             echo "No se encontró favicon.png en la raíz del repositorio"
           fi
 
-      - name: Limitar cantidad máxima de nodos en el graph
-        run: |
-          TARGET=$(find . -path "*/components/scripts/graph.*" -o -path "*/components/Graph.*" 2>/dev/null | head -n 1)
-          if [ -n "$TARGET" ]; then
-            echo "Parcheando límite de nodos a 45 en: $TARGET"
-            sed -i -E 's/(nodes\s*=\s*[^;]+);/\1.slice(0, 45);/g' "$TARGET" || true
-          fi
-
       - name: Inyectar estilos personalizados en custom.scss
         run: |
           mkdir -p quartz/styles
           cat << 'EOF' >> quartz/styles/custom.scss
 
-          /* --- Barra de Filtros Interactiva para Listados --- */
-          .contenedor-filtros-dinamicos {
-            margin: 1.5rem 0 2rem 0;
-            padding: 1rem;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--lightgray);
-            border-radius: 8px;
+          /* =========================================================
+             LIMPIEZA DE LISTADOS AUTOMÁTICOS EN CATÁLOGOS PAGINADOS
+             ========================================================= */
+          /* Oculta el contador "X items under this folder" y el listado no deseado */
+          .page-listing,
+          .page-listing + ul,
+          .section-ul:has(.section-li:nth-child(51)) {
+            display: none !important;
           }
 
-          .grupo-filtro {
+          /* Ocultar sección técnica de enlaces para el grafo */
+          .seccion-oculta-grafo {
+            display: none !important;
+          }
+
+          /* =========================================================
+             BARRA DE PAGINACIÓN CON MENÚ DESPLEGABLE (DROPDOWN)
+             ========================================================= */
+          .barra-paginacion-catalogo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 1.5rem 0;
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--lightgray);
+            border-radius: 12px;
+            gap: 12px;
+          }
+
+          .selector-pagina-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+          }
+
+          .selector-pagina-dropdown {
+            background: #1b1028 !important;
+            color: var(--secondary) !important;
+            border: 1px solid var(--secondary) !important;
+            padding: 6px 14px !important;
+            border-radius: 20px !important;
+            font-size: 0.9rem !important;
+            font-weight: bold !important;
+            outline: none !important;
+            cursor: pointer !important;
+            box-shadow: 0 0 10px rgba(93, 255, 154, 0.25) !important;
+          }
+
+          :root[saved-theme="light"] .selector-pagina-dropdown,
+          html[theme="light"] .selector-pagina-dropdown {
+            background: #ffffff !important;
+            color: var(--secondary) !important;
+            border-color: var(--secondary) !important;
+          }
+
+          .btn-nav-catalogo {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background: rgba(93, 255, 154, 0.08);
+            border: 1px solid var(--secondary);
+            color: var(--secondary) !important;
+            text-decoration: none !important;
+            font-weight: 600;
+            font-size: 0.88rem;
+            transition: all 0.2s ease;
+          }
+
+          .btn-nav-catalogo:hover {
+            background: var(--secondary);
+            color: var(--light) !important;
+            box-shadow: 0 0 12px rgba(93, 255, 154, 0.6);
+          }
+
+          .btn-nav-desactivado {
+            display: inline-block;
+            padding: 6px 16px;
+            color: var(--gray);
+            opacity: 0.3;
+            font-size: 0.88rem;
+            user-select: none;
+          }
+
+          /* =========================================================
+             BARRA DE FILTROS POR CATEGORÍAS (EN CABECERA)
+             ========================================================= */
+          .contenedor-filtros-catalogo {
+            margin: 1.2rem 0;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--lightgray);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+
+          .grupo-filtro-chips {
             display: flex;
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
-            margin-bottom: 0.6rem;
           }
 
-          .grupo-filtro:last-child {
-            margin-bottom: 0;
-          }
-
-          .etiqueta-filtro {
-            font-size: 0.8rem;
+          .etiqueta-filtro-chip {
+            font-size: 0.82rem;
             font-weight: bold;
             color: var(--gray);
-            min-width: 90px;
+            min-width: 85px;
           }
 
-          .btn-filtro {
-            background: rgba(255, 255, 255, 0.05);
+          .btn-chip-filtro {
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--lightgray);
             color: var(--darkgray);
             padding: 4px 12px;
-            border-radius: 16px;
-            font-size: 0.85rem;
+            border-radius: 14px;
+            font-size: 0.82rem;
             cursor: pointer;
             transition: all 0.15s ease;
-            user-select: none;
           }
 
-          .btn-filtro:disabled {
-            opacity: 0.25 !important;
-            cursor: not-allowed !important;
-            pointer-events: none !important;
-            border-color: var(--lightgray) !important;
-            color: var(--gray) !important;
-          }
-
-          .btn-filtro:hover {
+          .btn-chip-filtro:hover {
             border-color: var(--secondary);
             color: var(--secondary);
           }
 
-          .btn-filtro.activo {
+          .btn-chip-filtro.activo {
             background: var(--secondary) !important;
             border-color: var(--secondary) !important;
             color: var(--light) !important;
@@ -286,7 +353,7 @@ jobs:
             box-shadow: 0 0 8px rgba(93, 255, 154, 0.4);
           }
 
-          .btn-limpiar-filtros {
+          .btn-chip-reset {
             background: transparent;
             border: 1px dashed var(--gray);
             color: var(--gray);
@@ -297,18 +364,111 @@ jobs:
             margin-left: auto;
           }
 
-          .btn-limpiar-filtros:hover {
+          /* =========================================================
+             GRILLAS Y TARJETAS LIMPIAS (KANJI / RADICALES / VOCAB)
+             ========================================================= */
+          .grid-catalogo-kanjis {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+            margin: 1.5rem 0;
+          }
+
+          .card-catalogo-item {
+            text-decoration: none !important;
+            border: 1px solid var(--lightgray);
+            padding: 14px 10px;
+            border-radius: 8px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+            display: block;
+            transition: all 0.2s ease;
+          }
+
+          .card-catalogo-item:hover {
+            border-color: var(--secondary);
+            background: rgba(93, 255, 154, 0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 0 10px rgba(93, 255, 154, 0.25);
+          }
+
+          .glifo-item-kanji {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: var(--secondary);
+            margin-bottom: 4px;
+          }
+
+          .significado-item-kanji {
+            font-size: 0.8rem;
+            color: var(--darkgray);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .grid-catalogo-vocab {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+            margin: 1.5rem 0;
+          }
+
+          .card-catalogo-vocab {
+            text-decoration: none !important;
+            border: 1px solid var(--lightgray);
+            padding: 16px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: all 0.2s ease;
+          }
+
+          .card-catalogo-vocab:hover {
             border-color: var(--tertiary);
+            background: rgba(255, 79, 216, 0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 0 12px rgba(255, 79, 216, 0.25);
+          }
+
+          .cabecera-card-vocab {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+          }
+
+          .palabra-card-vocab {
+            font-size: 1.6rem;
+            font-weight: bold;
             color: var(--tertiary);
           }
 
-          .contador-resultados {
-            font-size: 0.85rem;
+          .kana-card-vocab {
+            font-size: 0.9rem;
             color: var(--gray);
-            margin-top: 0.8rem;
           }
 
-          /* --- Contenedor de glifos e imágenes históricas --- */
+          .traduccion-es-card {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--dark);
+          }
+
+          .glosa-multilingue {
+            font-size: 0.78rem;
+            color: var(--darkgray);
+            opacity: 0.85;
+            line-height: 1.4;
+            margin-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 6px;
+          }
+
+          /* =========================================================
+             ESTILOS GENERALES Y GLIFOS HISTÓRICOS
+             ========================================================= */
           .seccion-escritura, .contenedor-imagenes {
             display: flex;
             flex-wrap: wrap;
@@ -317,7 +477,6 @@ jobs:
             margin: 1.2rem 0;
           }
 
-          /* Modo Claro: Sin bordes ni marcos; mezcla transparente sobre papel cálido */
           .seccion-escritura img, .img-estilo, .img-origen {
             background: transparent !important;
             border: none !important;
@@ -342,7 +501,6 @@ jobs:
             margin: 0.5rem 0 !important;
           }
 
-          /* Modo Oscuro: Trazos blancos flotando directamente sobre el fondo púrpura */
           :root[saved-theme="dark"] .seccion-escritura img,
           :root[saved-theme="dark"] .img-estilo,
           :root[saved-theme="dark"] .img-origen,
@@ -357,7 +515,6 @@ jobs:
             border: none !important;
           }
 
-          /* Ajuste estético y alineación del Graph View */
           .graph {
             border: none !important;
             background: transparent !important;
@@ -388,13 +545,11 @@ jobs:
             height: 100% !important;
           }
 
-          /* Ocultar Table of Contents y metadatos en la portada */
           body[data-slug="index"] .toc,
           body[data-slug="index"] .content-meta {
             display: none !important;
           }
 
-          /* Ocultar fechas innecesarias en listados de tags y carpetas */
           .section-li .meta,
           .section-li time,
           .page-listing .meta,
@@ -402,28 +557,24 @@ jobs:
             display: none !important;
           }
 
-          /* Hover animado para las tarjetas del Dashboard */
           .card-dashboard:hover {
             border-color: var(--secondary) !important;
             transform: translateY(-3px);
             background: rgba(255, 255, 255, 0.06) !important;
           }
 
-          /* Hover para chips de JLPT (rosa neón) */
           .chip-jlpt:hover {
             background: var(--tertiary) !important;
             color: var(--light) !important;
             box-shadow: 0 0 10px var(--tertiary);
           }
 
-          /* Hover para chips de Taxonomía (verde neón) */
           .chip-tax:hover {
             background: var(--secondary) !important;
             color: var(--light) !important;
             box-shadow: 0 0 10px var(--secondary);
           }
 
-          /* Kanji Hero: Título gigante para kanjis y componentes */
           .article-title {
             font-size: 4.5rem !important;
             line-height: 1.1 !important;
@@ -433,169 +584,9 @@ jobs:
             margin: 0.5rem 0 1rem 0 !important;
           }
 
-          /* --- Cuadrícula tabular de 2 columnas para carpetas y tags --- */
-          .section-ul {
-            padding-left: 0 !important;
-            list-style: none !important;
-          }
-
-          .section-li {
-            display: grid !important;
-            grid-template-columns: 220px 1fr !important;
-            align-items: center !important;
-            gap: 16px !important;
-            margin-bottom: 0.75rem !important;
-          }
-
-          .section-li .section {
-            display: contents !important;
-          }
-
-          .section-li .desc {
-            grid-column: 1 !important;
-            margin: 0 !important;
-          }
-
-          .section-li .desc a {
-            font-size: 1.15rem !important;
-            font-weight: 600 !important;
-            display: inline-block !important;
-            word-break: break-word !important;
-          }
-
-          .section-li .tags {
-            grid-column: 2 !important;
-            display: flex !important;
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            list-style: none !important;
-            align-items: center !important;
-          }
-
-          .section-li .tags li {
-            margin: 0 !important;
-            padding: 0 !important;
-            list-style: none !important;
-          }
-
-          .section-li .tags li::marker,
-          .section-li .tags li::before {
-            display: none !important;
-            content: none !important;
-          }
-
-          /* --- Ocultar archivos individuales del árbol lateral para evitar saturación --- */
           #explorer-content ul li:not(:has(button)),
           .explorer-content ul li:not(:has(button)) {
             display: none !important;
-          }
-
-          /* --- Regla estricta para ocultar filas filtradas por los botones --- */
-          li.section-li.filtro-oculto {
-            display: none !important;
-          }
-
-          /* --- Barra de navegación de páginas en catálogos --- */
-          .barra-paginacion-catalogo {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 2rem 0;
-            padding: 12px 20px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--lightgray);
-            border-radius: 12px;
-            backdrop-filter: blur(6px);
-          }
-
-          .indicador-pagina-catalogo {
-            font-size: 0.95rem;
-            color: var(--gray);
-            font-weight: 500;
-          }
-
-          .indicador-pagina-catalogo span {
-            color: var(--secondary);
-            font-weight: bold;
-            font-size: 1.1rem;
-            text-shadow: 0 0 10px rgba(93, 255, 154, 0.5);
-          }
-
-          .btn-nav-catalogo {
-            display: inline-block;
-            padding: 6px 16px;
-            border-radius: 20px;
-            background: rgba(93, 255, 154, 0.08);
-            border: 1px solid var(--secondary);
-            color: var(--secondary) !important;
-            text-decoration: none !important;
-            font-weight: 600;
-            font-size: 0.88rem;
-            transition: all 0.2s ease;
-          }
-
-          .btn-nav-catalogo:hover {
-            background: var(--secondary);
-            color: var(--light) !important;
-            box-shadow: 0 0 12px rgba(93, 255, 154, 0.6);
-            transform: translateY(-1px);
-          }
-
-          .btn-nav-desactivado {
-            display: inline-block;
-            padding: 6px 16px;
-            color: var(--gray);
-            opacity: 0.3;
-            font-size: 0.88rem;
-            user-select: none;
-          }
-
-          /* --- Tarjetas de catálogo Kanji / Componentes --- */
-          .card-catalogo-item {
-            text-decoration: none !important;
-            border: 1px solid var(--lightgray);
-            padding: 14px 10px;
-            border-radius: 8px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.02);
-            display: block;
-            transition: all 0.2s ease;
-          }
-
-          .card-catalogo-item:hover {
-            border-color: var(--secondary);
-            background: rgba(93, 255, 154, 0.05);
-            transform: translateY(-2px);
-            box-shadow: 0 0 10px rgba(93, 255, 154, 0.2);
-          }
-
-          /* --- Tarjetas de catálogo Vocabulario --- */
-          .card-catalogo-vocab {
-            text-decoration: none !important;
-            border: 1px solid var(--lightgray);
-            padding: 14px 16px;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.02);
-            display: block;
-            transition: all 0.2s ease;
-          }
-
-          .card-catalogo-vocab:hover {
-            border-color: var(--tertiary);
-            background: rgba(255, 79, 216, 0.05);
-            transform: translateY(-2px);
-            box-shadow: 0 0 10px rgba(255, 79, 216, 0.2);
-          }
-
-          .tag-idioma {
-            font-size: 0.72rem;
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--lightgray);
-            color: var(--darkgray);
           }
           EOF
 
@@ -622,147 +613,6 @@ jobs:
               console.log("Nuevo tamano optimizado: " + tam + " MB");
             }
           '
-
-      - name: Inyectar botones de filtro en HTML de listados y tags
-        run: |
-          cat << 'INJECTOR_EOF' > inyectar_filtros.cjs
-          const fs = require("fs");
-
-          const scriptFiltros = [
-            '<script>',
-            'document.addEventListener("DOMContentLoaded", function() {',
-            '  function montarFiltros() {',
-            '    const lista = document.querySelector(".section-ul");',
-            '    if (!lista || document.querySelector(".contenedor-filtros-dinamicos")) return;',
-            '    const items = Array.from(lista.querySelectorAll(".section-li"));',
-            '    if (items.length === 0) return;',
-            '',
-            '    // Precalcular etiquetas por cada elemento para filtrado ultrarrápido',
-            '    const dataItems = items.map(function(it) {',
-            '      const t = Array.from(it.querySelectorAll(".tags a, .tags li")).map(function(e) {',
-            '        return e.textContent.replace("#","").trim().toLowerCase();',
-            '      });',
-            '      return { el: it, tags: new Set(t) };',
-            '    });',
-            '',
-            '    const panel = document.createElement("div");',
-            '    panel.className = "contenedor-filtros-dinamicos";',
-            '    panel.innerHTML = \'<div class="grupo-filtro">\' +',
-            '      \'<span class="etiqueta-filtro">JLPT:</span>\' +',
-            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n5">N5</button>\' +',
-            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n4">N4</button>\' +',
-            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n3">N3</button>\' +',
-            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n2">N2</button>\' +',
-            '      \'<button type="button" class="btn-filtro" data-tag="jlpt-n1">N1</button>\' +',
-            '      \'<button type="button" class="btn-limpiar-filtros" id="btn-reset-filtros">Limpiar</button>\' +',
-            '      \'</div>\' +',
-            '      \'<div class="grupo-filtro">\' +',
-            '      \'<span class="etiqueta-filtro">Taxonomía:</span>\' +',
-            '      \'<button type="button" class="btn-filtro" data-tag="joyo">Jōyō</button>\' +',
-            '      \'<button type="button" class="btn-filtro" data-tag="jinmeiyo">Jinmeiyō</button>\' +',
-            '      \'<button type="button" class="btn-filtro" data-tag="hyougaiji">Hyougaiji</button>\' +',
-            '      \'<button type="button" class="btn-filtro" data-tag="kyuujitai">Kyūjitai</button>\' +',
-            '      \'</div>\' +',
-            '      \'<div class="contador-resultados" id="lbl-contador">Mostrando \' + items.length + \' entradas</div>\';',
-            '',
-            '    lista.parentNode.insertBefore(panel, lista);',
-            '    const filtros = new Set();',
-            '    const contador = document.getElementById("lbl-contador");',
-            '    const todosLosBotones = Array.from(panel.querySelectorAll(".btn-filtro"));',
-            '',
-            '    function actualizarDisponibilidadBotones(visibles) {',
-            '      const tagsDisponibles = new Set();',
-            '      visibles.forEach(function(d) {',
-            '        d.tags.forEach(function(t) { tagsDisponibles.add(t); });',
-            '      });',
-            '',
-            '      todosLosBotones.forEach(function(b) {',
-            '        const tg = b.dataset.tag;',
-            '        if (!filtros.has(tg)) {',
-            '          b.disabled = !tagsDisponibles.has(tg);',
-            '        } else {',
-            '          b.disabled = false;',
-            '        }',
-            '      });',
-            '    }',
-            '',
-            '    function aplicar() {',
-            '      let visibles = [];',
-            '      const arr = Array.from(filtros);',
-            '',
-            '      dataItems.forEach(function(d) {',
-            '        const ok = arr.every(function(t) { return d.tags.has(t); });',
-            '        if (ok) {',
-            '          d.el.classList.remove("filtro-oculto");',
-            '          visibles.push(d);',
-            '        } else {',
-            '          d.el.classList.add("filtro-oculto");',
-            '        }',
-            '      });',
-            '',
-            '      contador.textContent = "Mostrando " + visibles.length + " entradas (de " + items.length + ")";',
-            '      actualizarDisponibilidadBotones(visibles);',
-            '    }',
-            '',
-            '    todosLosBotones.forEach(function(b) {',
-            '      b.onclick = function() {',
-            '        const tg = b.dataset.tag;',
-            '        if (filtros.has(tg)) {',
-            '          filtros.delete(tg);',
-            '          b.classList.remove("activo");',
-            '        } else {',
-            '          filtros.add(tg);',
-            '          b.classList.add("activo");',
-            '        }',
-            '        aplicar();',
-            '      };',
-            '    });',
-            '',
-            '    const btnReset = document.getElementById("btn-reset-filtros");',
-            '    if (btnReset) {',
-            '      btnReset.onclick = function() {',
-            '        filtros.clear();',
-            '        todosLosBotones.forEach(function(b) {',
-            '          b.classList.remove("activo");',
-            '          b.disabled = false;',
-            '        });',
-            '        aplicar();',
-            '      };',
-            '    }',
-            '',
-            '    actualizarDisponibilidadBotones(dataItems);',
-            '  }',
-            '  montarFiltros();',
-            '  document.addEventListener("nav", montarFiltros);',
-            '});',
-            '</script>'
-          ].join("\n");
-
-          function procesarArchivos(dir) {
-            if (!fs.existsSync(dir)) return;
-            const files = fs.readdirSync(dir, { withFileTypes: true });
-            for (const f of files) {
-              const full = dir + "/" + f.name;
-              if (f.isDirectory()) {
-                procesarArchivos(full);
-              } else if (f.name === "index.html") {
-                let html = fs.readFileSync(full, "utf8");
-                if (html.includes("section-ul") && !html.includes("contenedor-filtros-dinamicos")) {
-                  html = html.replace("</body>", scriptFiltros + "</body>");
-                  fs.writeFileSync(full, html);
-                  console.log("Filtros inyectados en: " + full);
-                }
-              }
-            }
-          }
-
-          procesarArchivos("public/vocab");
-          procesarArchivos("public/kanji");
-          procesarArchivos("public/tags");
-          INJECTOR_EOF
-
-          node inyectar_filtros.cjs
-          rm inyectar_filtros.cjs
 
       - name: Comprobar graph publicado
         run: |
