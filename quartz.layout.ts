@@ -1,10 +1,37 @@
 import { PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
+// Componente para inyectar GoatCounter con soporte SPA (Quartz 'nav')
+const GoatCounter: Component.QuartzComponent = () => {
+  return (
+    <>
+      <script
+        data-goatcounter="https://kanjigarden.goatcounter.com/count"
+        data-goatcounter-settings='{"allow_local": false}'
+        async
+        src="//gc.zgo.at/count.js"
+      ></script>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            document.addEventListener('nav', () => {
+              if (window.goatcounter && window.goatcounter.count) {
+                window.goatcounter.count({
+                  path: location.pathname + location.search + location.hash,
+                });
+              }
+            });
+          `,
+        }}
+      ></script>
+    </>
+  )
+}
+
 export const sharedPageComponents: SharedLayout = {
   head: Component.Head(),
   header: [],
-  afterBody: [],
+  afterBody: [GoatCounter],
   footer: Component.Footer({
     links: {
       GitHub: "https://github.com/HanakoMatcha/Kanji_Garden",
@@ -18,7 +45,7 @@ export const defaultContentPageLayout: PageLayout = {
     Component.Breadcrumbs(),
     Component.ArticleTitle(),
     Component.ContentMeta(),
-    Component.CategoryFilters(), // <-- Inyectado aquí también
+    Component.CategoryFilters(),
     Component.TagList(),
   ],
   left: [
@@ -34,9 +61,9 @@ export const defaultContentPageLayout: PageLayout = {
       folderDefaultState: "collapsed",
       useSavedFolderState: false,
       filterFn: (node) => {
-// Si no es carpeta y está dentro de vocab, kanji o componentes, no lo metas al árbol
-        if (!node.isFolder  { 
-            return false
+        // Si no es carpeta y está dentro de vocab, kanji o componentes, no lo metas al árbol
+        if (!node.isFolder) {
+          return false
         }
         return true
       },
@@ -54,7 +81,7 @@ export const defaultListPageLayout: PageLayout = {
     Component.Breadcrumbs(),
     Component.ArticleTitle(),
     Component.ContentMeta(),
-    Component.CategoryFilters(), // <-- Inyectado aquí
+    Component.CategoryFilters(),
   ],
   left: [
     Component.PageTitle(),
