@@ -45,6 +45,28 @@ const config: QuartzConfig = {
         },
       },
     },
+    customScripts: [
+      {
+        src: "//gc.zgo.at/count.js",
+        async: true,
+        "data-goatcounter": "https://kanjigarden.goatcounter.com/count",
+        "data-goatcounter-settings": JSON.stringify({
+          allow_local: false,
+        }),
+      },
+      {
+        inline: true,
+        content: `
+          document.addEventListener('nav', () => {
+            if (window.goatcounter && window.goatcounter.count) {
+              window.goatcounter.count({
+                path: location.pathname + location.search + location.hash,
+              });
+            }
+          });
+        `,
+      },
+    ],
   },
   plugins: {
     transformers: [
