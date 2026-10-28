@@ -358,6 +358,7 @@ async function main() {
   });
 
   const componentesGlobales = new Set();
+  const listaKanjisCatalogo = [];
   let totalKanjis = 0;
 
   kanjiRecords.forEach((row) => {
@@ -376,6 +377,14 @@ async function main() {
     ]);
     const kyujitaiAntiguo = getValor(row, ["Kyujitai (Kanji Antiguo)", "Kyujitai"]);
     
+    // Guardar para el catálogo paginado
+    listaKanjisCatalogo.push({
+      kanji,
+      significado,
+      onyomi,
+      kunyomi,
+    });
+
     // Extracción y saneamiento de la etimología
     const etimologiaRaw = getValor(row, ["Etimología", "Etimologia", "Etymology"]);
     const etimologia = limpiarEtimologiaWiktionary(etimologiaRaw);
@@ -447,6 +456,62 @@ ${seccionImagenes(kanji)}`;
 
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
+
+  // 1.1 Generación de Catálogo Paginado de Kanjis (50 por página)
+  console.log("Generando catálogo paginado para /kanji/...");
+  const POR_PAGINA = 50;
+  const totalPaginas = Math.ceil(listaKanjisCatalogo.length / POR_PAGINA) || 1;
+
+  for (let i = 0; i < totalPaginas; i++) {
+    const numPagina = i + 1;
+    const inicio = i * POR_PAGINA;
+    const lote = listaKanjisCatalogo.slice(inicio, inicio + POR_PAGINA);
+
+    const enlaceAnterior = numPagina === 1
+      ? ""
+      : numPagina === 2
+        ? `[[kanji/|← Anterior]]`
+        : `[[kanji/pagina-${numPagina - 1}|← Anterior]]`;
+
+    const enlaceSiguiente = numPagina < totalPaginas
+      ? `[[kanji/pagina-${numPagina + 1}|Siguiente →]]`
+      : "";
+
+    const navBar = `
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 2rem 0; padding: 12px 18px; background: rgba(0,0,0,0.03); border: 1px solid var(--lightgray); border-radius: 8px;">
+  <div style="min-width: 90px;">${enlaceAnterior}</div>
+  <div style="font-weight: bold; color: var(--dark);">Página ${numPagina} de ${totalPaginas}</div>
+  <div style="min-width: 90px; text-align: right;">${enlaceSiguiente}</div>
+</div>`;
+
+    let gridHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin: 1.5rem 0;">\n`;
+    lote.forEach((item) => {
+      gridHtml += `  <a href="./${nombreSeguro(item.kanji)}" style="text-decoration: none; border: 1px solid var(--lightgray); padding: 14px 10px; border-radius: 8px; text-align: center; background: rgba(255,255,255,0.02); display: block; transition: all 0.2s ease;">
+    <div style="font-size: 2rem; font-weight: bold; color: var(--secondary); margin-bottom: 4px;">${item.kanji}</div>
+    <div style="font-size: 0.8rem; color: var(--darkgray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.significado || "—"}</div>
+  </a>\n`;
+    });
+    gridHtml += `</div>\n`;
+
+    const contenidoIndice = `---
+title: "Catálogo de Kanjis (Pág. ${numPagina})"
+showDate: false
+showReadingTime: false
+showToc: false
+---
+
+# Catálogo de Kanjis
+
+Mostrando **${lote.length}** de **${listaKanjisCatalogo.length}** kanjis registrados.
+
+${navBar}
+${gridHtml}
+${navBar}
+`;
+
+    const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
+    escribirSiCambio(path.join(CONTENT_DIR, "kanji", nombreArchivo), contenidoIndice);
+  }
 
   // Notas de componentes y radicales con significado
   const listaComponentes = Array.from(componentesGlobales);
@@ -547,7 +612,7 @@ ${bloqueTraducciones}
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
-// 3. Portada principal con tarjetas estilizadas, glow y chips diferenciados
+  // 3. Portada principal con tarjetas estilizadas, glow y chips diferenciados
   const indexMd = `---
 title: "Inicio"
 showDate: false
