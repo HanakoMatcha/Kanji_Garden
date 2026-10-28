@@ -496,6 +496,107 @@ jobs:
           li.section-li.filtro-oculto {
             display: none !important;
           }
+
+          /* --- Barra de navegación de páginas en catálogos --- */
+          .barra-paginacion-catalogo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 2rem 0;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--lightgray);
+            border-radius: 12px;
+            backdrop-filter: blur(6px);
+          }
+
+          .indicador-pagina-catalogo {
+            font-size: 0.95rem;
+            color: var(--gray);
+            font-weight: 500;
+          }
+
+          .indicador-pagina-catalogo span {
+            color: var(--secondary);
+            font-weight: bold;
+            font-size: 1.1rem;
+            text-shadow: 0 0 10px rgba(93, 255, 154, 0.5);
+          }
+
+          .btn-nav-catalogo {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background: rgba(93, 255, 154, 0.08);
+            border: 1px solid var(--secondary);
+            color: var(--secondary) !important;
+            text-decoration: none !important;
+            font-weight: 600;
+            font-size: 0.88rem;
+            transition: all 0.2s ease;
+          }
+
+          .btn-nav-catalogo:hover {
+            background: var(--secondary);
+            color: var(--light) !important;
+            box-shadow: 0 0 12px rgba(93, 255, 154, 0.6);
+            transform: translateY(-1px);
+          }
+
+          .btn-nav-desactivado {
+            display: inline-block;
+            padding: 6px 16px;
+            color: var(--gray);
+            opacity: 0.3;
+            font-size: 0.88rem;
+            user-select: none;
+          }
+
+          /* --- Tarjetas de catálogo Kanji / Componentes --- */
+          .card-catalogo-item {
+            text-decoration: none !important;
+            border: 1px solid var(--lightgray);
+            padding: 14px 10px;
+            border-radius: 8px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+            display: block;
+            transition: all 0.2s ease;
+          }
+
+          .card-catalogo-item:hover {
+            border-color: var(--secondary);
+            background: rgba(93, 255, 154, 0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 0 10px rgba(93, 255, 154, 0.2);
+          }
+
+          /* --- Tarjetas de catálogo Vocabulario --- */
+          .card-catalogo-vocab {
+            text-decoration: none !important;
+            border: 1px solid var(--lightgray);
+            padding: 14px 16px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            display: block;
+            transition: all 0.2s ease;
+          }
+
+          .card-catalogo-vocab:hover {
+            border-color: var(--tertiary);
+            background: rgba(255, 79, 216, 0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 0 10px rgba(255, 79, 216, 0.2);
+          }
+
+          .tag-idioma {
+            font-size: 0.72rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--lightgray);
+            color: var(--darkgray);
+          }
           EOF
 
       - name: Compilar Quartz
