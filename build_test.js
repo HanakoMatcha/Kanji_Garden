@@ -111,24 +111,118 @@ function limpiarEtimologiaWiktionary(raw) {
   return texto || "Sin datos registrados.";
 }
 
-// Generador de barra de paginación estilizada con soporte SPA
+// Generador de barra de navegación con Dropdown y soporte SPA
 function renderBarraPaginacion(carpeta, numPagina, totalPaginas) {
-  const enlaceAnterior = numPagina === 1
-    ? `<span class="btn-nav-desactivado">← Anterior</span>`
-    : numPagina === 2
-      ? `<a href="./" class="btn-nav-catalogo">← Anterior</a>`
-      : `<a href="./pagina-${numPagina - 1}" class="btn-nav-catalogo">← Anterior</a>`;
+  const rutaAnterior = numPagina === 2 ? `/${carpeta}/` : `/${carpeta}/pagina-${numPagina - 1}`;
+  const rutaSiguiente = `/${carpeta}/pagina-${numPagina + 1}`;
 
-  const enlaceSiguiente = numPagina < totalPaginas
-    ? `<a href="./pagina-${numPagina + 1}" class="btn-nav-catalogo">Siguiente →</a>`
+  const btnAnterior = numPagina === 1
+    ? `<span class="btn-nav-desactivado">← Anterior</span>`
+    : `<a href="${rutaAnterior}" class="btn-nav-catalogo">← Anterior</a>`;
+
+  const btnSiguiente = numPagina < totalPaginas
+    ? `<a href="${rutaSiguiente}" class="btn-nav-catalogo">Siguiente →</a>`
     : `<span class="btn-nav-desactivado">Siguiente →</span>`;
+
+  let opciones = "";
+  for (let p = 1; p <= totalPaginas; p++) {
+    const targetUrl = p === 1 ? `/${carpeta}/` : `/${carpeta}/pagina-${p}`;
+    const selected = p === numPagina ? "selected" : "";
+    opciones += `<option value="${targetUrl}" ${selected}>Página ${p} de ${totalPaginas}</option>`;
+  }
 
   return `
 <div class="barra-paginacion-catalogo">
-  <div style="min-width: 120px; text-align: left;">${enlaceAnterior}</div>
-  <div class="indicador-pagina-catalogo">Página <span>${numPagina}</span> de ${totalPaginas}</div>
-  <div style="min-width: 120px; text-align: right;">${enlaceSiguiente}</div>
+  <div style="min-width: 100px; text-align: left;">${btnAnterior}</div>
+  <div class="selector-pagina-wrapper">
+    <select class="selector-pagina-dropdown" onchange="if(this.value) window.location.href=this.value;">
+      ${opciones}
+    </select>
+  </div>
+  <div style="min-width: 100px; text-align: right;">${btnSiguiente}</div>
 </div>`;
+}
+
+// Barra de Filtros interactiva para catálogos
+function renderFiltrosCatalogo(incluirTaxonomia = true) {
+  return `
+<div class="contenedor-filtros-catalogo">
+  <div class="grupo-filtro-chips">
+    <span class="etiqueta-filtro-chip">JLPT:</span>
+    <button type="button" class="btn-chip-filtro" data-filtro="jlpt-n5">N5</button>
+    <button type="button" class="btn-chip-filtro" data-filtro="jlpt-n4">N4</button>
+    <button type="button" class="btn-chip-filtro" data-filtro="jlpt-n3">N3</button>
+    <button type="button" class="btn-chip-filtro" data-filtro="jlpt-n2">N2</button>
+    <button type="button" class="btn-chip-filtro" data-filtro="jlpt-n1">N1</button>
+    <button type="button" class="btn-chip-reset" id="btn-limpiar-chips">Limpiar</button>
+  </div>
+  ${
+    incluirTaxonomia
+      ? `
+  <div class="grupo-filtro-chips">
+    <span class="etiqueta-filtro-chip">Taxonomía:</span>
+    <button type="button" class="btn-chip-filtro" data-filtro="joyo">Jōyō</button>
+    <button type="button" class="btn-chip-filtro" data-filtro="jinmeiyo">Jinmeiyō</button>
+    <button type="button" class="btn-chip-filtro" data-filtro="hyougaiji">Hyougaiji</button>
+    <button type="button" class="btn-chip-filtro" data-filtro="kyuujitai">Kyūjitai</button>
+  </div>`
+      : ""
+  }
+</div>
+
+<script>
+  (function() {
+    function initFiltrosCatalogo() {
+      const panel = document.querySelector('.contenedor-filtros-catalogo');
+      if (!panel || panel.dataset.bound) return;
+      panel.dataset.bound = "true";
+
+      const tarjetas = Array.from(document.querySelectorAll('.card-catalogo-item, .card-catalogo-vocab'));
+      const botones = Array.from(panel.querySelectorAll('.btn-chip-filtro'));
+      const btnReset = panel.querySelector('#btn-limpiar-chips');
+      let filtrosActivos = new Set();
+
+      function aplicar() {
+        const arr = Array.from(filtrosActivos);
+        tarjetas.forEach(t => {
+          const tagsStr = (t.dataset.tags || '').toLowerCase();
+          const visible = arr.length === 0 || arr.every(f => tagsStr.includes(f));
+          t.style.display = visible ? '' : 'none';
+        });
+      }
+
+      botones.forEach(b => {
+        b.addEventListener('click', () => {
+          const f = b.dataset.filtro;
+          if (filtrosActivos.has(f)) {
+            filtrosActivos.delete(f);
+            b.classList.remove('activo');
+          } else {
+            filtrosActivos.add(f);
+            b.classList.add('activo');
+          }
+          aplicar();
+        });
+      });
+
+      if (btnReset) {
+        btnReset.addEventListener('click', () => {
+          filtrosActivos.clear();
+          botones.forEach(b => b.classList.remove('activo'));
+          aplicar();
+        });
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initFiltrosCatalogo);
+    } else {
+      initFiltrosCatalogo();
+    }
+    document.addEventListener('nav', initFiltrosCatalogo);
+  })();
+</script>
+`;
 }
 
 // ---------- Practicador de kanji (Hanzi Writer) ----------
@@ -392,14 +486,6 @@ async function main() {
       "Componentes",
     ]);
     const kyujitaiAntiguo = getValor(row, ["Kyujitai (Kanji Antiguo)", "Kyujitai"]);
-    
-    listaKanjisCatalogo.push({
-      kanji,
-      significado,
-      onyomi,
-      kunyomi,
-    });
-
     const etimologiaRaw = getValor(row, ["Etimología", "Etimologia", "Etymology"]);
     const etimologia = limpiarEtimologiaWiktionary(etimologiaRaw);
 
@@ -417,6 +503,14 @@ async function main() {
 
     const tagJlpt = etiquetaJlpt(jlptKanji);
     if (tagJlpt) tags.push(tagJlpt);
+
+    listaKanjisCatalogo.push({
+      kanji,
+      significado,
+      onyomi,
+      kunyomi,
+      tags: tags.join(" "),
+    });
 
     const listaClasificacion = [];
     if (esJoyo) listaClasificacion.push("Jōyō (常用漢字)");
@@ -478,37 +572,43 @@ ${seccionImagenes(kanji)}`;
     const inicio = i * POR_PAGINA;
     const lote = listaKanjisCatalogo.slice(inicio, inicio + POR_PAGINA);
     const navBar = renderBarraPaginacion("kanji", numPagina, totalPaginasKanji);
+    const filtrosHtml = renderFiltrosCatalogo(true);
 
-    let gridHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin: 1.5rem 0;">\n`;
+    let gridHtml = `<div class="grid-catalogo-kanjis">\n`;
     lote.forEach((item) => {
-      gridHtml += `  <a href="./${nombreSeguro(item.kanji)}" class="card-catalogo-item">
-    <div style="font-size: 2.2rem; font-weight: bold; color: var(--secondary); margin-bottom: 4px;">${item.kanji}</div>
-    <div style="font-size: 0.8rem; color: var(--darkgray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.significado || "—"}</div>
+      gridHtml += `  <a href="/kanji/${nombreSeguro(item.kanji)}" class="card-catalogo-item" data-tags="${item.tags}">
+    <div class="glifo-item-kanji">${item.kanji}</div>
+    <div class="significado-item-kanji">${item.significado || "—"}</div>
   </a>\n`;
     });
     gridHtml += `</div>\n`;
 
-    // Enlaces invisibles para que el motor de Quartz alimente el Graph View local con los 50 nodos
-    const linksGrafo = lote.map((it) => `[[kanji/${nombreSeguro(it.kanji)}|${it.kanji}]]`).join(" ");
+    // Enlaces de Markdown nativos en sección colapsada para poblar el grafo
+    const enlacesGrafo = lote.map((it) => `- [[kanji/${nombreSeguro(it.kanji)}|${it.kanji}]]`).join("\n");
 
     const contenidoIndice = `---
 title: "Catálogo de Kanjis (Pág. ${numPagina})"
 showDate: false
 showReadingTime: false
 showToc: false
+enableFolderListing: false
 ---
 
 # Catálogo de Kanjis
 
 Mostrando **${lote.length}** de **${listaKanjisCatalogo.length}** kanjis registrados.
 
+${filtrosHtml}
 ${navBar}
 ${gridHtml}
 ${navBar}
 
-<div style="display: none;" aria-hidden="true">
-${linksGrafo}
-</div>
+<details class="seccion-oculta-grafo">
+<summary>Nodos del catálogo</summary>
+
+${enlacesGrafo}
+
+</details>
 `;
 
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
@@ -550,22 +650,23 @@ ${seccionImagenes(comp)}`;
     const lote = catalogoComponentes.slice(inicio, inicio + POR_PAGINA);
     const navBar = renderBarraPaginacion("componentes", numPagina, totalPaginasComp);
 
-    let gridHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin: 1.5rem 0;">\n`;
+    let gridHtml = `<div class="grid-catalogo-kanjis">\n`;
     lote.forEach((item) => {
-      gridHtml += `  <a href="./${nombreSeguro(item.comp)}" class="card-catalogo-item">
-    <div style="font-size: 2.2rem; font-weight: bold; color: var(--secondary); margin-bottom: 4px;">${item.comp}</div>
-    <div style="font-size: 0.8rem; color: var(--darkgray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.significado || "—"}</div>
+      gridHtml += `  <a href="/componentes/${nombreSeguro(item.comp)}" class="card-catalogo-item">
+    <div class="glifo-item-kanji">${item.comp}</div>
+    <div class="significado-item-kanji">${item.significado || "—"}</div>
   </a>\n`;
     });
     gridHtml += `</div>\n`;
 
-    const linksGrafo = lote.map((it) => `[[componentes/${nombreSeguro(it.comp)}|${it.comp}]]`).join(" ");
+    const enlacesGrafo = lote.map((it) => `- [[componentes/${nombreSeguro(it.comp)}|${it.comp}]]`).join("\n");
 
     const contenidoIndice = `---
 title: "Catálogo de Radicales (Pág. ${numPagina})"
 showDate: false
 showReadingTime: false
 showToc: false
+enableFolderListing: false
 ---
 
 # Catálogo de Radicales y Componentes
@@ -576,9 +677,12 @@ ${navBar}
 ${gridHtml}
 ${navBar}
 
-<div style="display: none;" aria-hidden="true">
-${linksGrafo}
-</div>
+<details class="seccion-oculta-grafo">
+<summary>Nodos del catálogo</summary>
+
+${enlacesGrafo}
+
+</details>
 `;
 
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
@@ -620,6 +724,9 @@ ${linksGrafo}
     const jlpt = getValor(row, ["JLPT"]) || SIN_JLPT;
     const jlptTag = etiquetaJlpt(jlpt);
 
+    const tagsVocab = ["vocabulario"];
+    if (jlptTag) tagsVocab.push(jlptTag);
+
     listaVocabCatalogo.push({
       palabra,
       kana,
@@ -631,6 +738,7 @@ ${linksGrafo}
       simpChinese,
       pinyin,
       jlpt,
+      tags: tagsVocab.join(" "),
     });
 
     const kanjis = extraerKanjis(palabra);
@@ -676,7 +784,7 @@ ${bloqueTraducciones}
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
-  // 3.1 Catálogo Paginado de Vocabulario (50 por página con tarjeta multilingüe)
+  // 3.1 Catálogo Paginado de Vocabulario (50 por página, diseño limpio)
   console.log("Generando catálogo paginado para /vocab/...");
   const totalPaginasVocab = Math.ceil(listaVocabCatalogo.length / POR_PAGINA) || 1;
 
@@ -685,49 +793,60 @@ ${bloqueTraducciones}
     const inicio = i * POR_PAGINA;
     const lote = listaVocabCatalogo.slice(inicio, inicio + POR_PAGINA);
     const navBar = renderBarraPaginacion("vocab", numPagina, totalPaginasVocab);
+    const filtrosHtml = renderFiltrosCatalogo(false);
 
-    let gridHtml = `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin: 1.5rem 0;">\n`;
+    let gridHtml = `<div class="grid-catalogo-vocab">\n`;
     lote.forEach((item) => {
-      const traduccionesAdicionales = [
-        item.en ? `<span class="tag-idioma">EN: ${item.en}</span>` : "",
-        item.fr ? `<span class="tag-idioma">FR: ${item.fr}</span>` : "",
-        item.de ? `<span class="tag-idioma">DE: ${item.de}</span>` : "",
-        item.tradChinese ? `<span class="tag-idioma">繁: ${item.tradChinese}</span>` : "",
-        item.simpChinese ? `<span class="tag-idioma">简: ${item.simpChinese}</span>` : "",
-        item.pinyin ? `<span class="tag-idioma">Pin: ${item.pinyin}</span>` : "",
-      ].filter(Boolean).join(" ");
+      // Línea de idiomas sutil, sin cajas cuadradas repetitivas
+      const partesIdiomas = [
+        item.en ? `EN: ${item.en}` : null,
+        item.fr ? `FR: ${item.fr}` : null,
+        item.de ? `DE: ${item.de}` : null,
+        item.tradChinese ? `繁: ${item.tradChinese}` : null,
+        item.simpChinese ? `简: ${item.simpChinese}` : null,
+        item.pinyin ? `Pin: ${item.pinyin}` : null,
+      ].filter(Boolean);
 
-      gridHtml += `  <a href="./${nombreSeguro(item.palabra)}" class="card-catalogo-vocab">
-    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
-      <span style="font-size: 1.5rem; font-weight: bold; color: var(--tertiary);">${item.palabra}</span>
-      <span style="font-size: 0.85rem; color: var(--gray);">${item.kana || ""}</span>
+      const glosaIdiomas = partesIdiomas.length > 0
+        ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
+        : "";
+
+      gridHtml += `  <a href="/vocab/${nombreSeguro(item.palabra)}" class="card-catalogo-vocab" data-tags="${item.tags}">
+    <div class="cabecera-card-vocab">
+      <span class="palabra-card-vocab">${item.palabra}</span>
+      <span class="kana-card-vocab">${item.kana || ""}</span>
     </div>
-    <div style="font-weight: 600; font-size: 0.95rem; color: var(--dark); margin-bottom: 6px;">${item.es || item.en || "—"}</div>
-    ${traduccionesAdicionales ? `<div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">${traduccionesAdicionales}</div>` : ""}
+    <div class="traduccion-es-card">${item.es || item.en || "—"}</div>
+    ${glosaIdiomas}
   </a>\n`;
     });
     gridHtml += `</div>\n`;
 
-    const linksGrafo = lote.map((it) => `[[vocab/${nombreSeguro(it.palabra)}|${it.palabra}]]`).join(" ");
+    const enlacesGrafo = lote.map((it) => `- [[vocab/${nombreSeguro(it.palabra)}|${it.palabra}]]`).join("\n");
 
     const contenidoIndice = `---
 title: "Catálogo de Vocabulario (Pág. ${numPagina})"
 showDate: false
 showReadingTime: false
 showToc: false
+enableFolderListing: false
 ---
 
 # Catálogo de Vocabulario
 
 Mostrando **${lote.length}** de **${listaVocabCatalogo.length}** palabras registradas.
 
+${filtrosHtml}
 ${navBar}
 ${gridHtml}
 ${navBar}
 
-<div style="display: none;" aria-hidden="true">
-${linksGrafo}
-</div>
+<details class="seccion-oculta-grafo">
+<summary>Nodos del catálogo</summary>
+
+${enlacesGrafo}
+
+</details>
 `;
 
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
@@ -740,6 +859,7 @@ title: "Inicio"
 showDate: false
 showReadingTime: false
 showToc: false
+enableFolderListing: false
 ---
 
 # Jardín Digital de Kanji y Léxico
