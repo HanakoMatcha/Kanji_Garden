@@ -383,7 +383,7 @@ function seccionImagenes(caracter) {
   return md;
 }
 
-// Generador genérico de catálogos con enlaces canónicos de Quartz
+// Generador de catálogos paginados limpio de títulos parásitos y con soporte completo para Graph
 function generarCatalogoPaginado({
   directorioDestino,
   tituloCatalogo,
@@ -410,6 +410,32 @@ function generarCatalogoPaginado({
     });
     gridHtml += `</div>\n`;
 
+    // Enlaces para que el Graph View y Backlinks registren los 50 elementos
+    // Sin encabezado ### para que no se filtre en el Table of Contents
+    const enlacesGrafo = lote.map(it => obtenerEnlaceGrafo(it)).join(" ");
+    
+    const contenidoIndice = `---
+title: "${tituloCatalogo} (Pág. ${numPagina})"
+showDate: false
+showReadingTime: false
+showToc: false
+enableFolderListing: false
+---
+# ${tituloCatalogo}
+Mostrando **${lote.length}** de **${items.length}** entradas registradas.
+${filtrosHtml}
+${navBar}
+${gridHtml}
+${navBar}
+
+<div class="seccion-oculta-grafo" style="display:none !important;" aria-hidden="true">
+${enlacesGrafo}
+</div>
+`;
+    const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
+    escribirSiCambio(path.join(directorioDestino, nombreArchivo), contenidoIndice);
+  }
+}
     // Conexiones en bloque oculto para activar los 50 nodos en el Grafo y Backlinks sin redundancia visual
     const enlacesGrafoMarkdown = lote.map(it => `- ${obtenerEnlaceGrafo(it)}`).join("\n");
     
