@@ -409,7 +409,8 @@ function generarCatalogoPaginado({
     });
     gridHtml += `</div>\n`;
 
-    const enlacesGrafo = lote.map((it) => obtenerEnlaceGrafo(it)).join(" ");
+    // Conexiones para el Grafo: wikilinks separados en una lista oculta por CSS (sin ### para no ensuciar el TOC)
+    const enlacesGrafo = lote.map(it => obtenerEnlaceGrafo(it)).join(" · ");
     
     const contenidoIndice = `---
 title: "${tituloCatalogo} (Pág. ${numPagina})"
@@ -425,9 +426,9 @@ ${navBar}
 ${gridHtml}
 ${navBar}
 
-<div class="seccion-oculta-grafo" style="display:none !important;" aria-hidden="true">
+<span class="enlaces-fantasma-grafo">
 ${enlacesGrafo}
-</div>
+</span>
 `;
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
     escribirSiCambio(path.join(directorioDestino, nombreArchivo), contenidoIndice);
