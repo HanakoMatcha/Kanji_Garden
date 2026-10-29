@@ -13,20 +13,14 @@ on:
 permissions:
   contents: read
 
-# Cancela ejecuciones en cola u obsoletas si se dispara una nueva
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Versión del motor de Quartz (rama, tag o commit). Pon aquí un commit concreto
-  # para que un cambio en Quartz no rompa tu build de un día para otro.
   QUARTZ_REF: 97a2d05f80c4c50534959b1d0d41cc4b3895625e
 
 jobs:
-  # ---------------------------------------------------------------
-  # 1) Revisar si hay algo nuevo que publicar (tarda segundos)
-  # ---------------------------------------------------------------
   revisar:
     runs-on: ubuntu-latest
     outputs:
@@ -42,18 +36,15 @@ jobs:
         id: hojas
         run: |
           set -eo pipefail
-          # URLs de Google Sheets escritas en build_test.js
-          urls=$(grep -ohE 'https://docs\.google\.com/spreadsheets/[A-Za-z0-9/_?=&.%-]+' build_test.js | sort -u || true)
+          urls=$(grep -ohE 'https://docs.google.com/spreadsheets/[A-Za-z0-9/_?=&.%-]+' build_test.js | sort -u || true)
           huella="sin-huella-${{ github.run_id }}"
           if [ -n "$urls" ]; then
-            huella=$(
-              for u in $urls; do
-                curl -fsSL --retry 3 "$u" | sha256sum
-              done | sha256sum | cut -d' ' -f1
-            ) || huella="error-${{ github.run_id }}"
+            huella=$(for u in $urls; do
+              curl -fsSL --retry 3 "$u" | sha256sum
+            done | sha256sum | cut -d' ' -f1) || huella="error-${{ github.run_id }}"
           fi
-          codigo="${{ hashFiles('build_test.js', '.github/workflows/deploy.yml') }}"
-          echo "clave=publicado-${codigo}-${huella}" >> "$GITHUB_OUTPUT"
+          codigo="${{ hashFiles('build_test.js', '.github/workflows/deploy.yml', 'quartz.layout.ts', 'quartz.config.ts') }}"
+          echo "clave=publicado-$codigo-${huella}" >> "$GITHUB_OUTPUT"
 
       - name: Buscar marca de publicación previa
         id: marca
@@ -74,9 +65,6 @@ jobs:
             echo "construir=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # ---------------------------------------------------------------
-  # 2) Generar Markdown y compilar Quartz
-  # ---------------------------------------------------------------
   construir:
     needs: revisar
     if: needs.revisar.outputs.construir == 'true'
@@ -143,61 +131,60 @@ jobs:
       - name: Fijar título del sitio en el YAML
         run: |
           f=quartz.config.default.yaml
-          sed -i -E 's|^([[:space:]]*pageTitle:).*|\1 "Kanji Garden"|' "$f"
-          grep -n -i "title" "$f" | head -10 || true
+          if [ -f "$f" ]; then
+            sed -i -E 's|^([[:space:]]*pageTitle:).*|\1 "Kanji Garden"|' "$f"
+            grep -n -i "title" "$f" | head -10 || true
+          fi
 
       - name: Fijar paleta de colores en el YAML
         run: |
           f=quartz.config.default.yaml
-          setc() { sed -i -E "$1 s|^([[:space:]]*)$2:.*|\1$2: $3|" "$f"; }
+          if [ -f "$f" ]; then
+            setc() { sed -i -E "$1s{^([[:space:]]*)$2:.*}{\1$2: $3}" "$f"; }
+            L='/^[[:space:]]*lightMode:/,/^[[:space:]]*darkMode:/'
+            setc "$L" light '"#f4ecd8"'
+            setc "$L" lightgray '"#e4d8bd"'
+            setc "$L" gray '"#b8a98a"'
+            setc "$L" darkgray '"#5c4636"'
+            setc "$L" dark '"#3e2a1e"'
+            setc "$L" secondary '"#6a8f58"'
+            setc "$L" tertiary '"#e993b5"'
+            setc "$L" highlight 'rgba(233, 147, 181, 0.2)'
+            setc "$L" textHighlight '"#f3c9d988"'
 
-          # Modo claro: papel de ebook, café oscuro, matcha y rosa pastel
-          L='/^[[:space:]]*lightMode:/,/^[[:space:]]*darkMode:/'
-          setc "$L" light '"#f4ecd8"'
-          setc "$L" lightgray '"#e4d8bd"'
-          setc "$L" gray '"#b8a98a"'
-          setc "$L" darkgray '"#5c4636"'
-          setc "$L" dark '"#3e2a1e"'
-          setc "$L" secondary '"#6a8f58"'
-          setc "$L" tertiary '"#e993b5"'
-          setc "$L" highlight 'rgba(233, 147, 181, 0.2)'
-          setc "$L" textHighlight '"#f3c9d988"'
-
-          # Modo oscuro: púrpura oscuro y neones
-          D='/^[[:space:]]*darkMode:/,/^plugins:/'
-          setc "$D" light '"#1b1028"'
-          setc "$D" lightgray '"#2e1c42"'
-          setc "$D" gray '"#6e5a8a"'
-          setc "$D" darkgray '"#d8cfe8"'
-          setc "$D" dark '"#f5f0fb"'
-          setc "$D" secondary '"#5dff9a"'
-          setc "$D" tertiary '"#ff4fd8"'
-          setc "$D" highlight 'rgba(255, 79, 216, 0.15)'
-          setc "$D" textHighlight '"#5dff9a55"'
+            D='/^[[:space:]]*darkMode:/,/^plugins:/'
+            setc "$D" light '"#1b1028"'
+            setc "$D" lightgray '"#2e1c42"'
+            setc "$D" gray '"#6e5a8a"'
+            setc "$D" darkgray '"#d8cfe8"'
+            setc "$D" dark '"#f5f0fb"'
+            setc "$D" secondary '"#5dff9a"'
+            setc "$D" tertiary '"#ff4fd8"'
+            setc "$D" highlight 'rgba(255, 79, 216, 0.15)'
+            setc "$D" textHighlight '"#5dff9a55"'
+          fi
 
       - name: Graph en carpetas y páginas de etiquetas
         run: |
           f=quartz.config.default.yaml
-          sed -i '/^    folder:/,/^    canvas:/ { /^      positions:/d; /^        right: \[\]/d }' "$f"
-          sed -i '/^    tag:/,/^    canvas:/ { /^      positions:/d; /^        right: \[\]/d }' "$f"
-          echo "--- bloque layout resultante ---"
-          sed -n '/^layout:/,$p' "$f"
+          if [ -f "$f" ]; then
+            sed -i '/^    folder:/,/^    canvas:/ { /^      positions:/d; /^        right: \[\]/d }' "$f"
+            sed -i '/^    tag:/,/^    canvas:/ { /^      positions:/d; /^        right: \[\]/d }' "$f"
+          fi
 
       - name: Apagar imágenes de vista previa (og-image)
         run: |
           f=quartz.config.default.yaml
-          echo "--- antes ---"
-          grep -n -A6 'quartz-community/og-image' "$f" || true
-          sed -i '/source: "@quartz-community\/og-image"/,/^  - source/ s/enabled: true/enabled: false/' "$f"
-          echo "--- después ---"
-          grep -n -A6 'quartz-community/og-image' "$f" || true
+          if [ -f "$f" ]; then
+            sed -i '/source: "@quartz-community\/og-image"/,/^  - source/ s/enabled: true/enabled: false/' "$f"
+          fi
 
       - name: Ajustar opciones del graph
         run: |
           f=quartz.config.default.yaml
-          sed -i '/source: "@quartz-community\/graph"/,/^  - source/ s|^    enabled: true$|    enabled: true\n    options:\n      localGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.1\n        repelForce: 0.6\n        centerForce: 0.3\n        linkDistance: 45\n        fontSize: 0.6\n        opacityScale: 1\n        removeTags: ["kanji", "vocabulario", "radical"]\n        showTags: true\n      globalGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.0\n        repelForce: 0.5\n        centerForce: 0.4\n        linkDistance: 50\n        fontSize: 0.5\n        opacityScale: 0.9\n        removeTags: ["kanji", "vocabulario", "radical"]\n        showTags: true|' "$f"
-          echo "--- bloque del graph ---"
-          grep -n -A22 'quartz-community/graph' "$f" || true
+          if [ -f "$f" ]; then
+            sed -i '/source: "@quartz-community\/graph"/,/^  - source/ s|^    enabled: true$|    enabled: true\n    options:\n      localGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.1\n        repelForce: 0.6\n        centerForce: 0.3\n        linkDistance: 45\n        fontSize: 0.6\n        opacityScale: 1\n        removeTags: ["kanji", "vocabulario", "radical"]\n        showTags: true\n      globalGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.0\n        repelForce: 0.5\n        centerForce: 0.4\n        linkDistance: 50\n        fontSize: 0.5\n        opacityScale: 0.9\n        removeTags: ["kanji", "vocabulario", "radical"]\n        showTags: true|' "$f"
+          fi
 
       - name: Cambiar favicon
         run: |
@@ -208,25 +195,23 @@ jobs:
               cp favicon.png "$f"
               echo "Reemplazado: $f"
             done
-          else
-            echo "No se encontró favicon.png en la raíz del repositorio"
           fi
 
       - name: Inyectar estilos personalizados en custom.scss
         run: |
           mkdir -p quartz/styles
           cat << 'EOF' >> quartz/styles/custom.scss
-
           /* =========================================================
              LIMPIEZA DE LISTADOS AUTOMÁTICOS EN CATÁLOGOS PAGINADOS
              ========================================================= */
-          /* Oculta únicamente el listado inferior dentro de los catálogos paginados, preservando /tags/ */
           body[data-slug^="kanji"] .page-listing,
           body[data-slug^="kanji"] .page-listing + ul,
           body[data-slug^="vocab"] .page-listing,
           body[data-slug^="vocab"] .page-listing + ul,
           body[data-slug^="componentes"] .page-listing,
-          body[data-slug^="componentes"] .page-listing + ul {
+          body[data-slug^="componentes"] .page-listing + ul,
+          body[data-slug^="colecciones"] .page-listing,
+          body[data-slug^="colecciones"] .page-listing + ul {
             display: none !important;
           }
 
@@ -368,13 +353,28 @@ jobs:
           }
 
           /* =========================================================
-             GRILLAS Y TARJETAS LIMPIAS (KANJI / RADICALES / VOCAB)
+             GRILLAS EN 3 O 4 COLUMNAS (KANJI / RADICALES / COLECCIONES)
              ========================================================= */
+          .grid-catalogo-general,
           .grid-catalogo-kanjis {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
             margin: 1.5rem 0;
+          }
+
+          @media (min-width: 640px) {
+            .grid-catalogo-general,
+            .grid-catalogo-kanjis {
+              grid-template-columns: repeat(3, 1fr);
+            }
+          }
+
+          @media (min-width: 900px) {
+            .grid-catalogo-general,
+            .grid-catalogo-kanjis {
+              grid-template-columns: repeat(4, 1fr);
+            }
           }
 
           .card-catalogo-item {
@@ -383,8 +383,13 @@ jobs:
             border-radius: 8px;
             text-align: center;
             background: rgba(255, 255, 255, 0.02);
-            display: block;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 110px;
             transition: all 0.2s ease;
+            text-decoration: none !important;
           }
 
           .card-catalogo-item:hover {
@@ -405,6 +410,7 @@ jobs:
             font-weight: bold;
             color: var(--secondary);
             margin-bottom: 4px;
+            line-height: 1.1;
           }
 
           .significado-item-kanji {
@@ -413,6 +419,8 @@ jobs:
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            width: 100%;
+            padding: 0 4px;
           }
 
           .grid-catalogo-vocab {
@@ -431,6 +439,7 @@ jobs:
             flex-direction: column;
             gap: 6px;
             transition: all 0.2s ease;
+            text-decoration: none !important;
           }
 
           .card-catalogo-vocab:hover {
@@ -590,11 +599,6 @@ jobs:
             text-shadow: 0 0 16px rgba(93, 255, 154, 0.4) !important;
             margin: 0.5rem 0 1rem 0 !important;
           }
-
-          #explorer-content ul li:not(:has(button)),
-          .explorer-content ul li:not(:has(button)) {
-            display: none !important;
-          }
           EOF
 
       - name: Compilar Quartz
@@ -621,30 +625,11 @@ jobs:
             }
           '
 
-      - name: Comprobar graph publicado
-        run: |
-          echo "--- profundidad del graph (local y global) ---"
-          grep -o '.\{0,10\}depth&quot;:[-0-9]*' public/index.html | head -3 || true
-          echo "--- etiquetas en el graph (showTags) ---"
-          grep -o 'showTags&quot;:[a-z]*' public/index.html | head -3 || true
-          echo -n "graph en la página del kanji 日: "
-          grep -c "graph-container" public/kanji/日.html || true
-
-      - name: Medir tamaño del sitio
-        run: |
-          du -sh public || true
-          find public -name "contentIndex*" -exec ls -la {} \; || true
-          echo -n "páginas HTML: "; find public -name "*.html" | wc -l
-          echo -n "imágenes webp: "; find public -name "*.webp" | wc -l
-
       - name: Empaquetar sitio para GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./public
 
-  # ---------------------------------------------------------------
-  # 3) Publicar y dejar la marca para saltar la próxima si no hay cambios
-  # ---------------------------------------------------------------
   desplegar:
     needs: [revisar, construir]
     runs-on: ubuntu-latest
