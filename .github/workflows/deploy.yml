@@ -85,6 +85,15 @@ jobs:
         run: |
           if [ ! -f "package.json" ]; then
             echo "package.json no detectado. Obteniendo motor de Quartz ($QUARTZ_REF)..."
+            # 1. Respaldar tus archivos locales personalizados de la raíz
+            mkdir -p /tmp/mis-archivos
+            for f in quartz.config.ts quartz.layout.ts custom.scss build_test.js favicon.png; do
+              if [ -f "$f" ]; then
+                cp "$f" /tmp/mis-archivos/
+              fi
+            done
+
+            # 2. Descargar y desempaquetar el motor completo
             mkdir quartz-engine
             git -C quartz-engine init -q
             git -C quartz-engine remote add origin https://github.com/jackyzha0/quartz.git
@@ -92,8 +101,11 @@ jobs:
             git -C quartz-engine checkout -q FETCH_HEAD
             rm -rf quartz-engine/.git
             shopt -s dotglob
-            cp -rn quartz-engine/* . || true
+            cp -rf quartz-engine/* .
             rm -rf quartz-engine
+
+            # 3. Restaurar tus archivos sobreescribiendo los valores por defecto
+            cp -rf /tmp/mis-archivos/* . 2>/dev/null || true
           fi
 
       - name: Cachear descargas de npm
