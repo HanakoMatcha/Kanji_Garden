@@ -92,7 +92,7 @@ jobs:
             git -C quartz-engine checkout -q FETCH_HEAD
             rm -rf quartz-engine/.git
             shopt -s dotglob
-            cp -r quartz-engine/* .
+            cp -rn quartz-engine/* . || true
             rm -rf quartz-engine
           fi
 
