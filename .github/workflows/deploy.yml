@@ -85,7 +85,6 @@ jobs:
         run: |
           if [ ! -f "package.json" ]; then
             echo "package.json no detectado. Obteniendo motor de Quartz ($QUARTZ_REF)..."
-            # 1. Respaldar tus archivos locales personalizados de la raíz
             mkdir -p /tmp/mis-archivos
             for f in quartz.config.ts quartz.layout.ts custom.scss build_test.js favicon.png; do
               if [ -f "$f" ]; then
@@ -93,7 +92,6 @@ jobs:
               fi
             done
 
-            # 2. Descargar y desempaquetar el motor completo
             mkdir quartz-engine
             git -C quartz-engine init -q
             git -C quartz-engine remote add origin https://github.com/jackyzha0/quartz.git
@@ -104,7 +102,6 @@ jobs:
             cp -rf quartz-engine/* .
             rm -rf quartz-engine
 
-            # 3. Restaurar tus archivos sobreescribiendo los valores por defecto
             cp -rf /tmp/mis-archivos/* . 2>/dev/null || true
           fi
 
@@ -227,8 +224,12 @@ jobs:
             display: none !important;
           }
 
-          /* Ocultar sección técnica de enlaces para el grafo */
-          .seccion-oculta-grafo {
+          /* Ocultar enlaces fantasma del grafo y eliminar Explorer */
+          .enlaces-fantasma-grafo,
+          .seccion-oculta-grafo,
+          #explorer-content,
+          .explorer,
+          .explorer-container {
             display: none !important;
           }
 
@@ -612,6 +613,17 @@ jobs:
             margin: 0.5rem 0 1rem 0 !important;
           }
           EOF
+
+      - name: Desactivar Explorer y Popovers globalmente
+        run: |
+          sed -i 's/enablePopovers: true/enablePopovers: false/g' quartz.config.ts || true
+          for f in quartz.config.yaml quartz.config.yml quartz.config.default.yaml; do
+            if [ -f "$f" ]; then
+              sed -i 's/enablePopovers: true/enablePopovers: false/g' "$f" || true
+              sed -i '/Component.Explorer/d' "$f" || true
+              sed -i '/explorer:/,/^    [a-z]/d' "$f" || true
+            fi
+          done
 
       - name: Compilar Quartz
         shell: bash
