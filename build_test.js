@@ -567,7 +567,7 @@ ${seccionImagenes(kanji)}`;
     tituloCatalogo: "Catálogo de Kanjis",
     items: listaKanjisCatalogo,
     tipoGrid: "grid-catalogo-kanjis",
-    renderTarjeta: (it) => `  <a href="./kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
+    renderTarjeta: (it) => `  <a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
     <div class="glifo-item-kanji">${it.kanji}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
@@ -599,7 +599,7 @@ ${seccionImagenes(comp)}`;
     tituloCatalogo: "Catálogo de Radicales y Componentes",
     items: catalogoComponentes,
     tipoGrid: "grid-catalogo-kanjis",
-    renderTarjeta: (it) => `  <a href="./componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item">
+    renderTarjeta: (it) => `  <a href="/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item">
     <div class="glifo-item-kanji">${it.comp}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
@@ -692,18 +692,18 @@ ${bloqueTraducciones}
     items: listaVocabCatalogo,
     tipoGrid: "grid-catalogo-vocab",
     renderTarjeta: (it) => {
-      const partesIdiomas = [
-        it.en ? `EN: ${it.en}` : null,
-        it.fr ? `FR: ${it.fr}` : null,
-        it.de ? `DE: ${it.de}` : null,
-        it.tradChinese ? `繁: ${it.tradChinese}` : null,
-        it.simpChinese ? `简: ${it.simpChinese}` : null,
-        it.pinyin ? `Pin: ${it.pinyin}` : null,
-      ].filter(Boolean);
-      const glosa = partesIdiomas.length > 0
-        ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
-        : "";
-      return `  <a href="./vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}">
+    const partesIdiomas = [
+      it.en ? `EN: ${it.en}` : null,
+      it.fr ? `FR: ${it.fr}` : null,
+      it.de ? `DE: ${it.de}` : null,
+      it.tradChinese ? `繁: ${it.tradChinese}` : null,
+      it.simpChinese ? `简: ${it.simpChinese}` : null,
+      it.pinyin ? `Pin: ${it.pinyin}` : null,
+    ].filter(Boolean);
+    const glosa = partesIdiomas.length > 0
+      ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
+      : "";
+    return `  <a href="/vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}">
     <div class="cabecera-card-vocab">
       <span class="palabra-card-vocab">${it.palabra}</span>
       <span class="kana-card-vocab">${it.kana || ""}</span>
@@ -711,7 +711,7 @@ ${bloqueTraducciones}
     <div class="traduccion-es-card">${it.es || it.en || "—"}</div>
     ${glosa}
   </a>\n`;
-    },
+  },
     obtenerEnlaceGrafo: (it) => `[[vocab/${nombreSeguro(it.palabra)}|${it.palabra}]]`,
     filtrosHtml: renderFiltrosCatalogo(false),
   });
