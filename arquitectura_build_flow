@@ -1,0 +1,50 @@
+```mermaid
+flowchart TD
+    Start([Inicio: main]) --> InitFS["Crear carpetas en ./content<br/>(vocab, kanji, componentes, colecciones)"]
+    InitFS --> FetchAssets["cargarIndiceImagenes()<br/>GET GitHub Trees API /kanjium-assets"]
+    FetchAssets --> IndexMap[("Llenar Map: indiceImagenes")]
+
+    %% KANJIS
+    subgraph Etapa1 ["1. Procesamiento de Kanjis"]
+        FetchAssets --> FetchK["Fetch CSV Kanji"]
+        FetchK --> ParseK["parse(CSV) con BOM y trim"]
+        ParseK --> LoopK["Iterar cada fila de Kanji"]
+        LoopK --> ParseCols["Extraer columnas:<br/>On/Kun, Joyo, JLPT, Kyujitai, etc."]
+        ParseCols --> CleanEtim["limpiarEtimologiaWiktionary()"]
+        CleanEtim --> ExtractRad["filtrarComponentesValidos()<br/>-> Guardar en componentesGlobales"]
+        ExtractRad --> GenQuiz["seccionPracticadorKanji() (HanziWriter)"]
+        GenQuiz --> GenImgK["seccionImagenes() (jsDelivr URLs)"]
+        GenImgK --> WriteK["escribirSiCambio(kanji/[caracter].md)"]
+        WriteK --> GroupCol["Agrupar en colecciones<br/>(joyo, jinmeiyo, JLPT, etc.)"]
+        GroupCol --> CatKanji["generarCatalogoPaginado(kanji/)"]
+    end
+
+    %% COMPONENTES
+    subgraph Etapa2 ["2. Procesamiento de Componentes"]
+        CatKanji --> LoopComps["Iterar componentesGlobales"]
+        LoopComps --> GenImgComp["seccionImagenes(comp)"]
+        GenImgComp --> WriteComp["escribirSiCambio(componentes/[comp].md)"]
+        WriteComp --> CatComp["generarCatalogoPaginado(componentes/)"]
+    end
+
+    %% VOCABULARIO
+    subgraph Etapa3 ["3. Procesamiento de Vocabulario"]
+        CatComp --> FetchV["Fetch CSV Vocabulario"]
+        FetchV --> ParseV["parse(CSV) Vocabulario"]
+        ParseV --> LoopV["Iterar cada palabra"]
+        LoopV --> ExtKanjis["extraerKanjis()<br/>Crear Wikilinks a kanji/"]
+        ExtKanjis --> BuildGloss["Construir glosas (ES, EN, FR, DE, ZH)"]
+        BuildGloss --> WriteV["escribirSiCambio(vocab/[palabra].md)"]
+        WriteV --> CatVocab["generarCatalogoPaginado(vocab/)"]
+    end
+
+    %% COLECCIONES Y PORTADA
+    subgraph Etapa4 ["4. Colecciones y Dashboard"]
+        CatVocab --> LoopColecciones["Iterar grupos (joyo, jinmeiyo, n5..n1)"]
+        LoopColecciones --> CatCol["generarCatalogoPaginado(colecciones/[clave])"]
+        CatCol --> BuildHome["Generar Dashboard de Inicio con conteos"]
+        BuildHome --> WriteIndex["escribirSiCambio(index.md)"]
+    end
+
+    WriteIndex --> End([Fin: Compilación finalizada])
+```
