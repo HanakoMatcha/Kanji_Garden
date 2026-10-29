@@ -140,7 +140,7 @@ jobs:
         run: |
           f=quartz.config.default.yaml
           if [ -f "$f" ]; then
-            setc() { sed -i -E "$1s{^([[:space:]]*)$2:.*}{\1$2: $3}" "$f"; }
+            setc() { sed -i -E "$1 s|^([[:space:]]*$2:).*|\1 $3|" "$f"; }
             L='/^[[:space:]]*lightMode:/,/^[[:space:]]*darkMode:/'
             setc "$L" light '"#f4ecd8"'
             setc "$L" lightgray '"#e4d8bd"'
