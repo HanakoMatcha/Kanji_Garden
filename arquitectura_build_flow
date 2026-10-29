@@ -1,11 +1,11 @@
 ```mermaid
 flowchart TD
-    Start(["Inicio: main"]) --> InitFS["Crear carpetas en ./content<br/>(vocab, kanji, componentes, colecciones)"]
+    Inicio(["Inicio: main"]) --> InitFS["Crear carpetas en ./content<br/>(vocab, kanji, componentes, colecciones)"]
     InitFS --> FetchAssets["cargarIndiceImagenes()<br/>GET GitHub Trees API"]
     FetchAssets --> IndexMap[("Llenar Map: indiceImagenes")]
-    IndexMap --> Etapa1
+    IndexMap --> FetchK
 
-    subgraph Etapa1 ["1. Procesamiento de Kanjis"]
+    subgraph Etapa1["1. Procesamiento de Kanjis"]
         direction TB
         FetchK["Fetch CSV Kanji"] --> ParseK["parse CSV con BOM y trim"]
         ParseK --> LoopK["Iterar cada fila de Kanji"]
@@ -19,18 +19,18 @@ flowchart TD
         GroupCol --> CatKanji["generarCatalogoPaginado: kanji/"]
     end
 
-    CatKanji --> Etapa2
+    CatKanji --> LoopComps
 
-    subgraph Etapa2 ["2. Procesamiento de Componentes"]
+    subgraph Etapa2["2. Procesamiento de Componentes"]
         direction TB
         LoopComps["Iterar componentesGlobales"] --> GenImgComp["seccionImagenes: comp"]
         GenImgComp --> WriteComp["escribirSiCambio: componentes/comp.md"]
         WriteComp --> CatComp["generarCatalogoPaginado: componentes/"]
     end
 
-    CatComp --> Etapa3
+    CatComp --> FetchV
 
-    subgraph Etapa3 ["3. Procesamiento de Vocabulario"]
+    subgraph Etapa3["3. Procesamiento de Vocabulario"]
         direction TB
         FetchV["Fetch CSV Vocabulario"] --> ParseV["parse CSV Vocabulario"]
         ParseV --> LoopV["Iterar cada palabra"]
@@ -40,14 +40,14 @@ flowchart TD
         WriteV --> CatVocab["generarCatalogoPaginado: vocab/"]
     end
 
-    CatVocab --> Etapa4
+    CatVocab --> LoopColecciones
 
-    subgraph Etapa4 ["4. Colecciones y Dashboard"]
+    subgraph Etapa4["4. Colecciones y Dashboard"]
         direction TB
         LoopColecciones["Iterar grupos (joyo, jinmeiyo, JLPT)"] --> CatCol["generarCatalogoPaginado: colecciones/clave"]
         CatCol --> BuildHome["Generar Dashboard de Inicio con conteos"]
         BuildHome --> WriteIndex["escribirSiCambio: index.md"]
     end
 
-    WriteIndex --> End(["Fin: Compilación finalizada"])
+    WriteIndex --> Fin(["Fin: Compilación finalizada"])
 ```
