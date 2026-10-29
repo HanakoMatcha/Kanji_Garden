@@ -1,50 +1,53 @@
 ```mermaid
 flowchart TD
-    Start([Inicio: main]) --> InitFS["Crear carpetas en ./content<br/>(vocab, kanji, componentes, colecciones)"]
-    InitFS --> FetchAssets["cargarIndiceImagenes()<br/>GET GitHub Trees API /kanjium-assets"]
+    Start(["Inicio: main"]) --> InitFS["Crear carpetas en ./content<br/>(vocab, kanji, componentes, colecciones)"]
+    InitFS --> FetchAssets["cargarIndiceImagenes()<br/>GET GitHub Trees API"]
     FetchAssets --> IndexMap[("Llenar Map: indiceImagenes")]
+    IndexMap --> Etapa1
 
-    %% KANJIS
     subgraph Etapa1 ["1. Procesamiento de Kanjis"]
-        FetchAssets --> FetchK["Fetch CSV Kanji"]
-        FetchK --> ParseK["parse(CSV) con BOM y trim"]
+        direction TB
+        FetchK["Fetch CSV Kanji"] --> ParseK["parse CSV con BOM y trim"]
         ParseK --> LoopK["Iterar cada fila de Kanji"]
-        LoopK --> ParseCols["Extraer columnas:<br/>On/Kun, Joyo, JLPT, Kyujitai, etc."]
+        LoopK --> ParseCols["Extraer columnas:<br/>On/Kun, Joyo, JLPT, Kyujitai"]
         ParseCols --> CleanEtim["limpiarEtimologiaWiktionary()"]
-        CleanEtim --> ExtractRad["filtrarComponentesValidos()<br/>-> Guardar en componentesGlobales"]
+        CleanEtim --> ExtractRad["filtrarComponentesValidos()<br/>Guardar en componentesGlobales"]
         ExtractRad --> GenQuiz["seccionPracticadorKanji() (HanziWriter)"]
         GenQuiz --> GenImgK["seccionImagenes() (jsDelivr URLs)"]
-        GenImgK --> WriteK["escribirSiCambio(kanji/[caracter].md)"]
-        WriteK --> GroupCol["Agrupar en colecciones<br/>(joyo, jinmeiyo, JLPT, etc.)"]
-        GroupCol --> CatKanji["generarCatalogoPaginado(kanji/)"]
+        GenImgK --> WriteK["escribirSiCambio: kanji/caracter.md"]
+        WriteK --> GroupCol["Agrupar en colecciones<br/>(joyo, jinmeiyo, JLPT)"]
+        GroupCol --> CatKanji["generarCatalogoPaginado: kanji/"]
     end
 
-    %% COMPONENTES
+    CatKanji --> Etapa2
+
     subgraph Etapa2 ["2. Procesamiento de Componentes"]
-        CatKanji --> LoopComps["Iterar componentesGlobales"]
-        LoopComps --> GenImgComp["seccionImagenes(comp)"]
-        GenImgComp --> WriteComp["escribirSiCambio(componentes/[comp].md)"]
-        WriteComp --> CatComp["generarCatalogoPaginado(componentes/)"]
+        direction TB
+        LoopComps["Iterar componentesGlobales"] --> GenImgComp["seccionImagenes: comp"]
+        GenImgComp --> WriteComp["escribirSiCambio: componentes/comp.md"]
+        WriteComp --> CatComp["generarCatalogoPaginado: componentes/"]
     end
 
-    %% VOCABULARIO
+    CatComp --> Etapa3
+
     subgraph Etapa3 ["3. Procesamiento de Vocabulario"]
-        CatComp --> FetchV["Fetch CSV Vocabulario"]
-        FetchV --> ParseV["parse(CSV) Vocabulario"]
+        direction TB
+        FetchV["Fetch CSV Vocabulario"] --> ParseV["parse CSV Vocabulario"]
         ParseV --> LoopV["Iterar cada palabra"]
         LoopV --> ExtKanjis["extraerKanjis()<br/>Crear Wikilinks a kanji/"]
         ExtKanjis --> BuildGloss["Construir glosas (ES, EN, FR, DE, ZH)"]
-        BuildGloss --> WriteV["escribirSiCambio(vocab/[palabra].md)"]
-        WriteV --> CatVocab["generarCatalogoPaginado(vocab/)"]
+        BuildGloss --> WriteV["escribirSiCambio: vocab/palabra.md"]
+        WriteV --> CatVocab["generarCatalogoPaginado: vocab/"]
     end
 
-    %% COLECCIONES Y PORTADA
+    CatVocab --> Etapa4
+
     subgraph Etapa4 ["4. Colecciones y Dashboard"]
-        CatVocab --> LoopColecciones["Iterar grupos (joyo, jinmeiyo, n5..n1)"]
-        LoopColecciones --> CatCol["generarCatalogoPaginado(colecciones/[clave])"]
+        direction TB
+        LoopColecciones["Iterar grupos (joyo, jinmeiyo, JLPT)"] --> CatCol["generarCatalogoPaginado: colecciones/clave"]
         CatCol --> BuildHome["Generar Dashboard de Inicio con conteos"]
-        BuildHome --> WriteIndex["escribirSiCambio(index.md)"]
+        BuildHome --> WriteIndex["escribirSiCambio: index.md"]
     end
 
-    WriteIndex --> End([Fin: Compilación finalizada])
+    WriteIndex --> End(["Fin: Compilación finalizada"])
 ```
