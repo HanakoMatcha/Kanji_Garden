@@ -1,13 +1,42 @@
 import { PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
-// Componente visual y analítico para GoatCounter
+// Componente visual de GoatCounter para la barra lateral izquierda
 const GoatCounterWidget: Component.QuartzComponent = () => {
   return (
-    <div class="goatcounter-widget" style={{ marginTop: "1.5rem", padding: "0.75rem", borderRadius: "8px", border: "1px solid var(--lightgray)", background: "rgba(255, 255, 255, 0.02)", textAlign: "center" }}>
-      <div style={{ fontSize: "0.75rem", color: "var(--gray)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>Visitas</div>
-      <div id="stats-visitas" style={{ fontSize: "1.1rem", fontWeight: "bold", color: "var(--secondary)" }}>
-        <span id="gc-counter">...</span>
+    <div
+      class="goatcounter-box"
+      style={{
+        marginTop: "1.5rem",
+        padding: "12px 14px",
+        borderRadius: "10px",
+        border: "1px solid var(--lightgray)",
+        background: "rgba(255, 255, 255, 0.02)",
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "0.72rem",
+          letterSpacing: "1px",
+          color: "var(--gray)",
+          textTransform: "uppercase",
+          fontWeight: "600",
+          marginBottom: "6px",
+        }}
+      >
+        Visitas del sitio
+      </div>
+      <div
+        id="gc-stats-count"
+        style={{
+          fontSize: "1.3rem",
+          fontWeight: "bold",
+          color: "var(--secondary)",
+          minHeight: "1.5rem",
+        }}
+      >
+        ...
       </div>
       <script
         data-goatcounter="https://kanjigarden.goatcounter.com/count"
@@ -18,22 +47,26 @@ const GoatCounterWidget: Component.QuartzComponent = () => {
       <script
         dangerouslySetInnerHTML={{
           __html: `
-            function actualizarContador() {
+            function actualizarGoatCounter() {
               if (window.goatcounter && window.goatcounter.count) {
                 window.goatcounter.count({
                   path: location.pathname + location.search + location.hash,
                 });
               }
-              const elem = document.getElementById('gc-counter');
-              if (elem) {
+              const display = document.getElementById('gc-stats-count');
+              if (display) {
                 fetch('https://kanjigarden.goatcounter.com/counter/' + encodeURIComponent(location.pathname) + '.json')
-                  .then(r => r.json())
-                  .then(d => { elem.innerText = d.count || '1'; })
-                  .catch(() => { elem.innerText = '—'; });
+                  .then(res => res.json())
+                  .then(data => {
+                    display.innerText = data.count || '1';
+                  })
+                  .catch(() => {
+                    display.innerText = '—';
+                  });
               }
             }
-            document.addEventListener('nav', actualizarContador);
-            document.addEventListener('DOMContentLoaded', actualizarContador);
+            document.addEventListener('nav', actualizarGoatCounter);
+            document.addEventListener('DOMContentLoaded', actualizarGoatCounter);
           `,
         }}
       ></script>
@@ -52,7 +85,7 @@ export const sharedPageComponents: SharedLayout = {
   }),
 }
 
-// Para páginas individuales Y para carpetas con index.md
+// Páginas de contenido e índices de carpetas (index.md)
 export const defaultContentPageLayout: PageLayout = {
   beforeBody: [
     Component.Breadcrumbs(),
@@ -69,16 +102,16 @@ export const defaultContentPageLayout: PageLayout = {
       showPreview: false,
     }),
     Component.Darkmode(),
-    Component.DesktopOnly(Component.Graph()),
     GoatCounterWidget,
   ],
   right: [
+    Component.DesktopOnly(Component.Graph()),
     Component.DesktopOnly(Component.TableOfContents()),
     Component.Backlinks(),
   ],
 }
 
-// Para carpetas automáticas sin index.md y etiquetas
+// Carpetas automáticas sin index.md y páginas de tags
 export const defaultListPageLayout: PageLayout = {
   beforeBody: [
     Component.Breadcrumbs(),
@@ -97,6 +130,7 @@ export const defaultListPageLayout: PageLayout = {
     GoatCounterWidget,
   ],
   right: [
+    Component.DesktopOnly(Component.Graph()),
     Component.Backlinks(),
   ],
 }
