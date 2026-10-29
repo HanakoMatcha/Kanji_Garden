@@ -5,7 +5,10 @@ import { parse } from "csv-parse/sync";
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
 
+// Dominio y subruta de GitHub Pages
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
+const BASE_PATH = "/Kanji_Garden";
+
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
 
@@ -106,7 +109,7 @@ function limpiarEtimologiaWiktionary(raw) {
   return texto || "Sin datos registrados.";
 }
 
-// Barra de paginación que resuelve rutas relativas
+// Barra de paginación que siempre respeta el subdirectorio de GitHub Pages
 function renderBarraPaginacion(numPagina, totalPaginas) {
   const enlaceAnterior = numPagina === 1
     ? `<span class="btn-nav-desactivado">← Anterior</span>`
@@ -131,8 +134,9 @@ function renderBarraPaginacion(numPagina, totalPaginas) {
   <div class="selector-pagina-wrapper">
     <select class="selector-pagina-dropdown" onchange="
       const segs = window.location.pathname.split('/').filter(Boolean);
-      const isFile = segs.length > 0 && segs[segs.length - 1].startsWith('pagina-');
-      if (isFile) segs.pop();
+      if (segs.length > 0 && segs[segs.length - 1].startsWith('pagina-')) {
+        segs.pop();
+      }
       const base = '/' + segs.join('/') + '/';
       window.location.href = base + this.value;
     ">
@@ -417,7 +421,7 @@ function seccionImagenes(caracter) {
   return md;
 }
 
-// Generador genérico de catálogos paginados con 50 nodos en el grafo local
+// Generador genérico de catálogos paginados
 function generarCatalogoPaginado({
   directorioDestino,
   tituloCatalogo,
@@ -445,7 +449,7 @@ function generarCatalogoPaginado({
     });
     gridHtml += `</div>\n`;
 
-    // Lista nativa en Markdown sin etiquetas bloque para que Quartz popule el Graph View
+    // Lista de enlaces nativos que Quartz lee para el Grafo
     const enlacesGrafoMarkdown = lote.map(it => `- ${obtenerEnlaceGrafo(it)}`).join("\n");
 
     const contenidoIndice = `---
@@ -608,12 +612,12 @@ ${seccionImagenes(kanji)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
-  // Generar Catálogo Principal de Kanji
+  // Generar Catálogo Principal de Kanji con BASE_PATH
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "kanji"),
     tituloCatalogo: "Catálogo de Kanjis",
     items: listaKanjisCatalogo,
-    renderTarjeta: (it) => `  <a href="../kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
+    renderTarjeta: (it) => `  <a href="${BASE_PATH}/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
     <div class="glifo-item-kanji">${it.kanji}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
@@ -621,7 +625,7 @@ ${seccionImagenes(kanji)}`;
     filtrosHtml: renderFiltrosCatalogo(true),
   });
 
-  // 2. Componentes / Radicales
+  // 2. Componentes / Radicales con BASE_PATH
   console.log("Procesando componentes...");
   const catalogoComponentes = Array.from(componentesGlobales).map((comp) => {
     const significadoComp = mapaSignificados.get(comp) || "Componente estructural / radical";
@@ -646,14 +650,14 @@ ${seccionImagenes(comp)}`;
     directorioDestino: path.join(CONTENT_DIR, "componentes"),
     tituloCatalogo: "Catálogo de Radicales y Componentes",
     items: catalogoComponentes,
-    renderTarjeta: (it) => `  <a href="../componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item">
+    renderTarjeta: (it) => `  <a href="${BASE_PATH}/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item">
     <div class="glifo-item-kanji">${it.comp}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
     obtenerEnlaceGrafo: (it) => `[[componentes/${nombreSeguro(it.comp)}|${it.comp}]]`,
   });
 
-  // 3. Vocabulario
+  // 3. Vocabulario con BASE_PATH
   console.log("Descargando y procesando vocabulario...");
   const resVocab = await fetch(URL_VOCAB);
   const textVocab = await resVocab.text();
@@ -739,7 +743,6 @@ ${bloqueTraducciones}
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
-  // Generar Catálogo Paginado de Vocabulario
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "vocab"),
     tituloCatalogo: "Catálogo de Vocabulario",
@@ -758,7 +761,7 @@ ${bloqueTraducciones}
         ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
         : "";
 
-      return `  <a href="../vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}">
+      return `  <a href="${BASE_PATH}/vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}">
     <div class="cabecera-card-vocab">
       <span class="palabra-card-vocab">${it.palabra}</span>
       <span class="kana-card-vocab">${it.kana || ""}</span>
@@ -771,7 +774,7 @@ ${bloqueTraducciones}
     filtrosHtml: renderFiltrosCatalogo(false),
   });
 
-  // 4. Catálogos dedicados y paginados para taxonomías (Jinmeiyō, Jōyō, JLPT)
+  // 4. Catálogos dedicados para taxonomías (con enlaces directos al kanji)
   console.log("Generando catálogos paginados para colecciones y taxonomías...");
   const titulosColecciones = {
     joyo: "Kanjis Jōyō (常用漢字)",
@@ -791,7 +794,7 @@ ${bloqueTraducciones}
       directorioDestino: path.join(CONTENT_DIR, "colecciones", clave),
       tituloCatalogo: titulosColecciones[clave] || `Colección: ${clave}`,
       items: listado,
-      renderTarjeta: (it) => `  <a href="../../kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
+      renderTarjeta: (it) => `  <a href="${BASE_PATH}/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
     <div class="glifo-item-kanji">${it.kanji}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
@@ -799,7 +802,7 @@ ${bloqueTraducciones}
     });
   }
 
-  // 5. Portada principal actualizada
+  // 5. Portada principal
   const indexMd = `---
 title: "Inicio"
 showDate: false
