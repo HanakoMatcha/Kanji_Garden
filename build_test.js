@@ -2,14 +2,10 @@ import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
 
-// Googleスプレッドシートの公開CSV URL
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
 
-// GitHub Pagesルート（https:// および末尾スラッシュなし）
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
-
-// jsDelivr経由で配信する画像リポジトリ
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
 
@@ -26,7 +22,6 @@ const ORDEN_IMG = ["origin", "tensho", "gyosho", "sousho", "kso_images"];
 
 const CONTENT_DIR = "./content";
 
-// 出力ディレクトリの作成
 ["vocab", "kanji", "componentes"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
@@ -111,17 +106,17 @@ function limpiarEtimologiaWiktionary(raw) {
   return texto || "Sin datos registrados.";
 }
 
-// ドロップダウン対応ページネーション（ベースパス動的解決による404防止）
+// Navegación relativa universal para subcarpetas en GitHub Pages
 function renderBarraPaginacion(carpeta, numPagina, totalPaginas) {
-  const rutaAnterior = numPagina === 2 ? `./` : `./pagina-${numPagina - 1}`;
-  const rutaSiguiente = `./pagina-${numPagina + 1}`;
-
-  const btnAnterior = numPagina === 1
+  const prefijo = numPagina === 1 ? "./" : "./";
+  const enlaceAnterior = numPagina === 1
     ? `<span class="btn-nav-desactivado">← Anterior</span>`
-    : `<a href="${rutaAnterior}" class="btn-nav-catalogo">← Anterior</a>`;
+    : numPagina === 2
+      ? `<a href="./" class="btn-nav-catalogo">← Anterior</a>`
+      : `<a href="./pagina-${numPagina - 1}" class="btn-nav-catalogo">← Anterior</a>`;
 
-  const btnSiguiente = numPagina < totalPaginas
-    ? `<a href="${rutaSiguiente}" class="btn-nav-catalogo">Siguiente →</a>`
+  const enlaceSiguiente = numPagina < totalPaginas
+    ? `<a href="./pagina-${numPagina + 1}" class="btn-nav-catalogo">Siguiente →</a>`
     : `<span class="btn-nav-desactivado">Siguiente →</span>`;
 
   let opciones = "";
@@ -133,20 +128,24 @@ function renderBarraPaginacion(carpeta, numPagina, totalPaginas) {
 
   return `
 <div class="barra-paginacion-catalogo">
-  <div style="min-width: 100px; text-align: left;">${btnAnterior}</div>
+  <div style="min-width: 100px; text-align: left;">${enlaceAnterior}</div>
   <div class="selector-pagina-wrapper">
     <select class="selector-pagina-dropdown" onchange="
-      const basePath = window.location.pathname.replace(/pagina-[0-9]+\\/?$/, '').replace(/\\/?$/, '/');
-      window.location.href = basePath + this.value;
+      const segs = window.location.pathname.split('/').filter(Boolean);
+      while(segs.length > 0 && (segs[segs.length-1].startsWith('pagina-') || segs[segs.length-1] === '${carpeta}')) {
+        if (segs[segs.length-1] === '${carpeta}') break;
+        segs.pop();
+      }
+      const base = '/' + segs.join('/') + '/';
+      window.location.href = base + this.value;
     ">
       ${opciones}
     </select>
   </div>
-  <div style="min-width: 100px; text-align: right;">${btnSiguiente}</div>
+  <div style="min-width: 100px; text-align: right;">${enlaceSiguiente}</div>
 </div>`;
 }
 
-// カタログ用カテゴリフィルター
 function renderFiltrosCatalogo(incluirTaxonomia = true) {
   return `
 <div class="contenedor-filtros-catalogo">
@@ -228,7 +227,6 @@ function renderFiltrosCatalogo(incluirTaxonomia = true) {
 `;
 }
 
-// 筆順アニメーション練習コンポーネント
 function seccionPracticadorKanji(caracter) {
   const containerId = `kanji-quiz-${caracter.codePointAt(0)}`;
 
@@ -352,7 +350,6 @@ function seccionPracticadorKanji(caracter) {
 `;
 }
 
-// 書体画像インデックス
 const indiceImagenes = new Map();
 
 async function cargarIndiceImagenes() {
@@ -444,11 +441,10 @@ async function main() {
     fs.writeFileSync(configPath, config, "utf8");
   }
 
-  // 0. 画像リソースのロード
   console.log("Cargando índice de imágenes de kanjium...");
   await cargarIndiceImagenes();
 
-  // 1. 漢字シートのダウンロードと処理
+  // 1. Kanjis
   console.log("Descargando hoja de kanjis...");
   const resKanji = await fetch(URL_KANJI);
   const textKanji = await resKanji.text();
@@ -458,10 +454,6 @@ async function main() {
     bom: true,
     trim: true,
   });
-
-  if (kanjiRecords.length > 0) {
-    console.log(`Encabezados detectados en KANJI: ${Object.keys(kanjiRecords[0]).join(" | ")}`);
-  }
 
   const mapaSignificados = new Map();
   kanjiRecords.forEach((row) => {
@@ -565,7 +557,7 @@ ${seccionImagenes(kanji)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
-  // 1.1 漢字カタログの生成（50件/ページ）
+  // Catálogo Kanji
   console.log("Generando catálogo paginado para /kanji/...");
   const POR_PAGINA = 50;
   const totalPaginasKanji = Math.ceil(listaKanjisCatalogo.length / POR_PAGINA) || 1;
@@ -576,19 +568,20 @@ ${seccionImagenes(kanji)}`;
     const lote = listaKanjisCatalogo.slice(inicio, inicio + POR_PAGINA);
     const navBar = renderBarraPaginacion("kanji", numPagina, totalPaginasKanji);
     const filtrosHtml = renderFiltrosCatalogo(true);
+    const prefijoRuta = numPagina === 1 ? "./" : "./";
 
     let gridHtml = `<div class="grid-catalogo-kanjis">\n`;
     lote.forEach((item) => {
-      gridHtml += `  <a href="./${nombreSeguro(item.kanji)}" class="card-catalogo-item" data-tags="${item.tags}">
-    <div class="glifo-item-kanji">${item.kanji}</div>
+      // Usamos el wikilink estilizado como tarjeta para navegación nativa sin error 404
+      gridHtml += `  <div class="card-catalogo-item" data-tags="${item.tags}">
+    <div class="glifo-item-kanji">[[kanji/${nombreSeguro(item.kanji)}|${item.kanji}]]</div>
     <div class="significado-item-kanji">${item.significado || "—"}</div>
-  </a>\n`;
+  </div>\n`;
     });
     gridHtml += `</div>\n`;
 
-    // 1ページ目・個別ページ双方で確実にグラフに反映されるようにリンク形式を二重定義
     const enlacesGrafo = lote
-      .map((it) => `- [[${nombreSeguro(it.kanji)}|${it.kanji}]]\n- [[kanji/${nombreSeguro(it.kanji)}|${it.kanji}]]`)
+      .map((it) => `- [[kanji/${nombreSeguro(it.kanji)}|${it.kanji}]]`)
       .join("\n");
 
     const contenidoIndice = `---
@@ -608,19 +601,20 @@ ${navBar}
 ${gridHtml}
 ${navBar}
 
-<details class="seccion-oculta-grafo">
-<summary>Nodos del catálogo</summary>
+\n\n
+<details class="seccion-oculta-grafo" style="display:none;">
+<summary>Nodos</summary>
 
 ${enlacesGrafo}
 
 </details>
-`;
+\n\n`;
 
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", nombreArchivo), contenidoIndice);
   }
 
-  // 2. 部首・構成要素の処理
+  // 2. Componentes / Radicales
   console.log("Procesando componentes...");
   const listaComponentes = Array.from(componentesGlobales);
   const catalogoComponentes = [];
@@ -645,7 +639,6 @@ ${seccionImagenes(comp)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
   });
 
-  // 2.1 部首カタログの生成（50件/ページ）
   console.log("Generando catálogo paginado para /componentes/...");
   const totalPaginasComp = Math.ceil(catalogoComponentes.length / POR_PAGINA) || 1;
 
@@ -657,15 +650,15 @@ ${seccionImagenes(comp)}`;
 
     let gridHtml = `<div class="grid-catalogo-kanjis">\n`;
     lote.forEach((item) => {
-      gridHtml += `  <a href="./${nombreSeguro(item.comp)}" class="card-catalogo-item">
-    <div class="glifo-item-kanji">${item.comp}</div>
+      gridHtml += `  <div class="card-catalogo-item">
+    <div class="glifo-item-kanji">[[componentes/${nombreSeguro(item.comp)}|${item.comp}]]</div>
     <div class="significado-item-kanji">${item.significado || "—"}</div>
-  </a>\n`;
+  </div>\n`;
     });
     gridHtml += `</div>\n`;
 
     const enlacesGrafo = lote
-      .map((it) => `- [[${nombreSeguro(it.comp)}|${it.comp}]]\n- [[componentes/${nombreSeguro(it.comp)}|${it.comp}]]`)
+      .map((it) => `- [[componentes/${nombreSeguro(it.comp)}|${it.comp}]]`)
       .join("\n");
 
     const contenidoIndice = `---
@@ -684,19 +677,20 @@ ${navBar}
 ${gridHtml}
 ${navBar}
 
-<details class="seccion-oculta-grafo">
-<summary>Nodos del catálogo</summary>
+\n\n
+<details class="seccion-oculta-grafo" style="display:none;">
+<summary>Nodos</summary>
 
 ${enlacesGrafo}
 
 </details>
-`;
+\n\n`;
 
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", nombreArchivo), contenidoIndice);
   }
 
-  // 3. 語彙シートのダウンロードと処理
+  // 3. Vocabulario
   console.log("Descargando hoja de vocabulario...");
   const resVocab = await fetch(URL_VOCAB);
   const textVocab = await resVocab.text();
@@ -706,10 +700,6 @@ ${enlacesGrafo}
     bom: true,
     trim: true,
   });
-
-  if (vocabRecords.length > 0) {
-    console.log(`Encabezados detectados en VOCAB: ${Object.keys(vocabRecords[0]).join(" | ")}`);
-  }
 
   let totalVocab = 0;
   const listaVocabCatalogo = [];
@@ -791,7 +781,6 @@ ${bloqueTraducciones}
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
-  // 3.1 語彙カタログの生成（50件/ページ）
   console.log("Generando catálogo paginado para /vocab/...");
   const totalPaginasVocab = Math.ceil(listaVocabCatalogo.length / POR_PAGINA) || 1;
 
@@ -817,19 +806,19 @@ ${bloqueTraducciones}
         ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
         : "";
 
-      gridHtml += `  <a href="./${nombreSeguro(item.palabra)}" class="card-catalogo-vocab" data-tags="${item.tags}">
+      gridHtml += `  <div class="card-catalogo-vocab" data-tags="${item.tags}">
     <div class="cabecera-card-vocab">
-      <span class="palabra-card-vocab">${item.palabra}</span>
+      <span class="palabra-card-vocab">[[vocab/${nombreSeguro(item.palabra)}|${item.palabra}]]</span>
       <span class="kana-card-vocab">${item.kana || ""}</span>
     </div>
     <div class="traduccion-es-card">${item.es || item.en || "—"}</div>
     ${glosaIdiomas}
-  </a>\n`;
+  </div>\n`;
     });
     gridHtml += `</div>\n`;
 
     const enlacesGrafo = lote
-      .map((it) => `- [[${nombreSeguro(it.palabra)}|${it.palabra}]]\n- [[vocab/${nombreSeguro(it.palabra)}|${it.palabra}]]`)
+      .map((it) => `- [[vocab/${nombreSeguro(it.palabra)}|${it.palabra}]]`)
       .join("\n");
 
     const contenidoIndice = `---
@@ -849,19 +838,20 @@ ${navBar}
 ${gridHtml}
 ${navBar}
 
-<details class="seccion-oculta-grafo">
-<summary>Nodos del catálogo</summary>
+\n\n
+<details class="seccion-oculta-grafo" style="display:none;">
+<summary>Nodos</summary>
 
 ${enlacesGrafo}
 
 </details>
-`;
+\n\n`;
 
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", nombreArchivo), contenidoIndice);
   }
 
-  // 4. メインポータルページ（ダッシュボード）
+  // 4. Portada principal
   const indexMd = `---
 title: "Inicio"
 showDate: false
