@@ -1,7 +1,6 @@
 import { PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
-// Componente visual de GoatCounter para la barra lateral izquierda
 const GoatCounterWidget: Component.QuartzComponent = () => {
   return (
     <div
@@ -25,7 +24,7 @@ const GoatCounterWidget: Component.QuartzComponent = () => {
           marginBottom: "6px",
         }}
       >
-        Visitas del sitio
+        Visitas
       </div>
       <div
         id="gc-stats-count"
@@ -85,7 +84,6 @@ export const sharedPageComponents: SharedLayout = {
   }),
 }
 
-// Páginas de contenido e índices de carpetas (index.md)
 export const defaultContentPageLayout: PageLayout = {
   beforeBody: [
     Component.Breadcrumbs(),
@@ -111,7 +109,6 @@ export const defaultContentPageLayout: PageLayout = {
   ],
 }
 
-// Carpetas automáticas sin index.md y páginas de tags
 export const defaultListPageLayout: PageLayout = {
   beforeBody: [
     Component.Breadcrumbs(),
