@@ -5,10 +5,7 @@ import { parse } from "csv-parse/sync";
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
 
-// Dominio y subruta de GitHub Pages
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
-const BASE_PATH = "/Kanji_Garden";
-
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
 
@@ -109,7 +106,7 @@ function limpiarEtimologiaWiktionary(raw) {
   return texto || "Sin datos registrados.";
 }
 
-// Barra de paginación que siempre respeta el subdirectorio de GitHub Pages
+// Barra de paginación que detecta dinámicamente la ruta en el navegador
 function renderBarraPaginacion(numPagina, totalPaginas) {
   const enlaceAnterior = numPagina === 1
     ? `<span class="btn-nav-desactivado">← Anterior</span>`
@@ -133,12 +130,13 @@ function renderBarraPaginacion(numPagina, totalPaginas) {
   <div style="min-width: 100px; text-align: left;">${enlaceAnterior}</div>
   <div class="selector-pagina-wrapper">
     <select class="selector-pagina-dropdown" onchange="
-      const segs = window.location.pathname.split('/').filter(Boolean);
-      if (segs.length > 0 && segs[segs.length - 1].startsWith('pagina-')) {
-        segs.pop();
+      const url = new URL(window.location.href);
+      const parts = url.pathname.split('/').filter(Boolean);
+      if (parts.length > 0 && parts[parts.length - 1].startsWith('pagina-')) {
+        parts.pop();
       }
-      const base = '/' + segs.join('/') + '/';
-      window.location.href = base + this.value;
+      url.pathname = '/' + parts.join('/') + '/' + this.value;
+      window.location.href = url.toString();
     ">
       ${opciones}
     </select>
@@ -421,7 +419,7 @@ function seccionImagenes(caracter) {
   return md;
 }
 
-// Generador genérico de catálogos paginados
+// Generador genérico de catálogos con enlaces canónicos de Quartz
 function generarCatalogoPaginado({
   directorioDestino,
   tituloCatalogo,
@@ -449,7 +447,6 @@ function generarCatalogoPaginado({
     });
     gridHtml += `</div>\n`;
 
-    // Lista de enlaces nativos que Quartz lee para el Grafo
     const enlacesGrafoMarkdown = lote.map(it => `- ${obtenerEnlaceGrafo(it)}`).join("\n");
 
     const contenidoIndice = `---
@@ -612,12 +609,12 @@ ${seccionImagenes(kanji)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
-  // Generar Catálogo Principal de Kanji con BASE_PATH
+  // Catálogo Kanji
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "kanji"),
     tituloCatalogo: "Catálogo de Kanjis",
     items: listaKanjisCatalogo,
-    renderTarjeta: (it) => `  <a href="${BASE_PATH}/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
+    renderTarjeta: (it) => `  <a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
     <div class="glifo-item-kanji">${it.kanji}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
@@ -625,7 +622,7 @@ ${seccionImagenes(kanji)}`;
     filtrosHtml: renderFiltrosCatalogo(true),
   });
 
-  // 2. Componentes / Radicales con BASE_PATH
+  // 2. Componentes / Radicales
   console.log("Procesando componentes...");
   const catalogoComponentes = Array.from(componentesGlobales).map((comp) => {
     const significadoComp = mapaSignificados.get(comp) || "Componente estructural / radical";
@@ -650,14 +647,14 @@ ${seccionImagenes(comp)}`;
     directorioDestino: path.join(CONTENT_DIR, "componentes"),
     tituloCatalogo: "Catálogo de Radicales y Componentes",
     items: catalogoComponentes,
-    renderTarjeta: (it) => `  <a href="${BASE_PATH}/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item">
+    renderTarjeta: (it) => `  <a href="/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item">
     <div class="glifo-item-kanji">${it.comp}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
     obtenerEnlaceGrafo: (it) => `[[componentes/${nombreSeguro(it.comp)}|${it.comp}]]`,
   });
 
-  // 3. Vocabulario con BASE_PATH
+  // 3. Vocabulario
   console.log("Descargando y procesando vocabulario...");
   const resVocab = await fetch(URL_VOCAB);
   const textVocab = await resVocab.text();
@@ -761,7 +758,7 @@ ${bloqueTraducciones}
         ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
         : "";
 
-      return `  <a href="${BASE_PATH}/vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}">
+      return `  <a href="/vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}">
     <div class="cabecera-card-vocab">
       <span class="palabra-card-vocab">${it.palabra}</span>
       <span class="kana-card-vocab">${it.kana || ""}</span>
@@ -774,7 +771,7 @@ ${bloqueTraducciones}
     filtrosHtml: renderFiltrosCatalogo(false),
   });
 
-  // 4. Catálogos dedicados para taxonomías (con enlaces directos al kanji)
+  // 4. Colecciones por nivel y taxonomía
   console.log("Generando catálogos paginados para colecciones y taxonomías...");
   const titulosColecciones = {
     joyo: "Kanjis Jōyō (常用漢字)",
@@ -794,7 +791,7 @@ ${bloqueTraducciones}
       directorioDestino: path.join(CONTENT_DIR, "colecciones", clave),
       tituloCatalogo: titulosColecciones[clave] || `Colección: ${clave}`,
       items: listado,
-      renderTarjeta: (it) => `  <a href="${BASE_PATH}/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
+      renderTarjeta: (it) => `  <a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
     <div class="glifo-item-kanji">${it.kanji}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
@@ -856,7 +853,7 @@ Base de datos viva e interconectada a partir de Google Sheets.
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
-  console.log("Compilación de datos finalizada con éxito.");
+  console.log("Compilación finalizada.");
 }
 
 main();
