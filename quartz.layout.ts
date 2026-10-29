@@ -1,10 +1,14 @@
 import { PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
-// Componente para inyectar GoatCounter con soporte SPA (Quartz 'nav')
-const GoatCounter: Component.QuartzComponent = () => {
+// Componente visual y analítico para GoatCounter
+const GoatCounterWidget: Component.QuartzComponent = () => {
   return (
-    <>
+    <div class="goatcounter-widget" style={{ marginTop: "1.5rem", padding: "0.75rem", borderRadius: "8px", border: "1px solid var(--lightgray)", background: "rgba(255, 255, 255, 0.02)", textAlign: "center" }}>
+      <div style={{ fontSize: "0.75rem", color: "var(--gray)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>Visitas</div>
+      <div id="stats-visitas" style={{ fontSize: "1.1rem", fontWeight: "bold", color: "var(--secondary)" }}>
+        <span id="gc-counter">...</span>
+      </div>
       <script
         data-goatcounter="https://kanjigarden.goatcounter.com/count"
         data-goatcounter-settings='{"allow_local": false}'
@@ -14,24 +18,33 @@ const GoatCounter: Component.QuartzComponent = () => {
       <script
         dangerouslySetInnerHTML={{
           __html: `
-            document.addEventListener('nav', () => {
+            function actualizarContador() {
               if (window.goatcounter && window.goatcounter.count) {
                 window.goatcounter.count({
                   path: location.pathname + location.search + location.hash,
                 });
               }
-            });
+              const elem = document.getElementById('gc-counter');
+              if (elem) {
+                fetch('https://kanjigarden.goatcounter.com/counter/' + encodeURIComponent(location.pathname) + '.json')
+                  .then(r => r.json())
+                  .then(d => { elem.innerText = d.count || '1'; })
+                  .catch(() => { elem.innerText = '—'; });
+              }
+            }
+            document.addEventListener('nav', actualizarContador);
+            document.addEventListener('DOMContentLoaded', actualizarContador);
           `,
         }}
       ></script>
-    </>
+    </div>
   )
 }
 
 export const sharedPageComponents: SharedLayout = {
   head: Component.Head(),
   header: [],
-  afterBody: [GoatCounter],
+  afterBody: [],
   footer: Component.Footer({
     links: {
       GitHub: "https://github.com/HanakoMatcha/Kanji_Garden",
@@ -56,18 +69,8 @@ export const defaultContentPageLayout: PageLayout = {
       showPreview: false,
     }),
     Component.Darkmode(),
-    Component.Explorer({
-      title: "Explorador",
-      folderDefaultState: "collapsed",
-      useSavedFolderState: false,
-      filterFn: (node) => {
-        // Si no es carpeta y está dentro de vocab, kanji o componentes, no lo metas al árbol
-        if (!node.isFolder) {
-          return false
-        }
-        return true
-      },
-    }),
+    Component.DesktopOnly(Component.Graph()),
+    GoatCounterWidget,
   ],
   right: [
     Component.DesktopOnly(Component.TableOfContents()),
@@ -91,17 +94,9 @@ export const defaultListPageLayout: PageLayout = {
       showPreview: false,
     }),
     Component.Darkmode(),
-    Component.Explorer({
-      title: "Explorador",
-      folderDefaultState: "collapsed",
-      useSavedFolderState: false,
-      filterFn: (node) => {
-        if (!node.isFolder && (node.slug?.startsWith("vocab/") || node.slug?.startsWith("kanji/"))) {
-          return false
-        }
-        return true
-      },
-    }),
+    GoatCounterWidget,
   ],
-  right: [],
+  right: [
+    Component.Backlinks(),
+  ],
 }
