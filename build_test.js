@@ -102,14 +102,15 @@ function limpiarEtimologiaWiktionary(raw) {
 }
 
 function renderBarraPaginacion(numPagina, totalPaginas) {
+  const anteriorHref = numPagina === 1 ? "" : (numPagina === 2 ? "./" : `./pagina-${numPagina - 1}`);
+  const siguienteHref = numPagina < totalPaginas ? `./pagina-${numPagina + 1}` : "";
+
   const enlaceAnterior = numPagina === 1
     ? `<span class="btn-nav-desactivado">← Anterior</span>`
-    : numPagina === 2
-      ? `<a href="./" class="btn-nav-catalogo">← Anterior</a>`
-      : `<a href="./pagina-${numPagina - 1}" class="btn-nav-catalogo">← Anterior</a>`;
+    : `<a href="${anteriorHref}" class="btn-nav-catalogo">← Anterior</a>`;
 
   const enlaceSiguiente = numPagina < totalPaginas
-    ? `<a href="./pagina-${numPagina + 1}" class="btn-nav-catalogo">Siguiente →</a>`
+    ? `<a href="${siguienteHref}" class="btn-nav-catalogo">Siguiente →</a>`
     : `<span class="btn-nav-desactivado">Siguiente →</span>`;
 
   let opciones = "";
@@ -383,13 +384,13 @@ function seccionImagenes(caracter) {
   return md;
 }
 
+// Generador de catálogos con Wikilinks nativos para indexación perfecta de grafos
 function generarCatalogoPaginado({
   directorioDestino,
   tituloCatalogo,
   items,
   porPagina = 50,
-  renderTarjeta,
-  obtenerEnlaceGrafo,
+  renderItemMarkdown,
   filtrosHtml = "",
   tipoGrid = "grid-catalogo-general"
 }) {
@@ -403,15 +404,8 @@ function generarCatalogoPaginado({
     const lote = items.slice(inicio, inicio + porPagina);
     const navBar = renderBarraPaginacion(numPagina, totalPaginas);
     
-    let gridHtml = `<div class="${tipoGrid}">\n`;
-    lote.forEach((item) => {
-      gridHtml += renderTarjeta(item);
-    });
-    gridHtml += `</div>\n`;
+    const itemsMarkdown = lote.map(it => renderItemMarkdown(it)).join("\n");
 
-    // Conexiones para el Grafo: wikilinks separados en una lista oculta por CSS (sin ### para no ensuciar el TOC)
-    const enlacesGrafo = lote.map(it => obtenerEnlaceGrafo(it)).join(" · ");
-    
     const contenidoIndice = `---
 title: "${tituloCatalogo} (Pág. ${numPagina})"
 showDate: false
@@ -423,12 +417,12 @@ enableFolderListing: false
 Mostrando **${lote.length}** de **${items.length}** entradas registradas.
 ${filtrosHtml}
 ${navBar}
-${gridHtml}
-${navBar}
 
-<span class="enlaces-fantasma-grafo">
-${enlacesGrafo}
-</span>
+<div class="${tipoGrid}">
+${itemsMarkdown}
+</div>
+
+${navBar}
 `;
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
     escribirSiCambio(path.join(directorioDestino, nombreArchivo), contenidoIndice);
@@ -436,13 +430,6 @@ ${enlacesGrafo}
 }
 
 async function main() {
-  const configPath = "./quartz.config.ts";
-  if (fs.existsSync(configPath)) {
-    let config = fs.readFileSync(configPath, "utf8");
-    config = config.replace(/baseUrl:\s*"[^"]*"/, `baseUrl: "${MI_BASE_URL}"`);
-    fs.writeFileSync(configPath, config, "utf8");
-  }
-
   await cargarIndiceImagenes();
 
   // 1. Kanjis
@@ -567,11 +554,7 @@ ${seccionImagenes(kanji)}`;
     tituloCatalogo: "Catálogo de Kanjis",
     items: listaKanjisCatalogo,
     tipoGrid: "grid-catalogo-kanjis",
-    renderTarjeta: (it) => `  <a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
-    <div class="glifo-item-kanji">${it.kanji}</div>
-    <div class="significado-item-kanji">${it.significado || "—"}</div>
-  </a>\n`,
-    obtenerEnlaceGrafo: (it) => `[[kanji/${nombreSeguro(it.kanji)}|${it.kanji}]]`,
+    renderItemMarkdown: (it) => `[[kanji/${nombreSeguro(it.kanji)}|<div class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></div>]]`,
     filtrosHtml: renderFiltrosCatalogo(true),
   });
 
@@ -599,11 +582,7 @@ ${seccionImagenes(comp)}`;
     tituloCatalogo: "Catálogo de Radicales y Componentes",
     items: catalogoComponentes,
     tipoGrid: "grid-catalogo-kanjis",
-    renderTarjeta: (it) => `  <a href="/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item">
-    <div class="glifo-item-kanji">${it.comp}</div>
-    <div class="significado-item-kanji">${it.significado || "—"}</div>
-  </a>\n`,
-    obtenerEnlaceGrafo: (it) => `[[componentes/${nombreSeguro(it.comp)}|${it.comp}]]`,
+    renderItemMarkdown: (it) => `[[componentes/${nombreSeguro(it.comp)}|<div class="card-catalogo-item"><div class="glifo-item-kanji">${it.comp}</div><div class="significado-item-kanji">${it.significado || "—"}</div></div>]]`,
   });
 
   // 3. Vocabulario
@@ -691,32 +670,24 @@ ${bloqueTraducciones}
     tituloCatalogo: "Catálogo de Vocabulario",
     items: listaVocabCatalogo,
     tipoGrid: "grid-catalogo-vocab",
-    renderTarjeta: (it) => {
-    const partesIdiomas = [
-      it.en ? `EN: ${it.en}` : null,
-      it.fr ? `FR: ${it.fr}` : null,
-      it.de ? `DE: ${it.de}` : null,
-      it.tradChinese ? `繁: ${it.tradChinese}` : null,
-      it.simpChinese ? `简: ${it.simpChinese}` : null,
-      it.pinyin ? `Pin: ${it.pinyin}` : null,
-    ].filter(Boolean);
-    const glosa = partesIdiomas.length > 0
-      ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
-      : "";
-    return `  <a href="/vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}">
-    <div class="cabecera-card-vocab">
-      <span class="palabra-card-vocab">${it.palabra}</span>
-      <span class="kana-card-vocab">${it.kana || ""}</span>
-    </div>
-    <div class="traduccion-es-card">${it.es || it.en || "—"}</div>
-    ${glosa}
-  </a>\n`;
-  },
-    obtenerEnlaceGrafo: (it) => `[[vocab/${nombreSeguro(it.palabra)}|${it.palabra}]]`,
+    renderItemMarkdown: (it) => {
+      const partesIdiomas = [
+        it.en ? `EN: ${it.en}` : null,
+        it.fr ? `FR: ${it.fr}` : null,
+        it.de ? `DE: ${it.de}` : null,
+        it.tradChinese ? `繁: ${it.tradChinese}` : null,
+        it.simpChinese ? `简: ${it.simpChinese}` : null,
+        it.pinyin ? `Pin: ${it.pinyin}` : null,
+      ].filter(Boolean);
+      const glosa = partesIdiomas.length > 0
+        ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
+        : "";
+      return `[[vocab/${nombreSeguro(it.palabra)}|<div class="card-catalogo-vocab" data-tags="${it.tags}"><div class="cabecera-card-vocab"><span class="palabra-card-vocab">${it.palabra}</span><span class="kana-card-vocab">${it.kana || ""}</span></div><div class="traduccion-es-card">${it.es || it.en || "—"}</div>${glosa}</div>]]`;
+    },
     filtrosHtml: renderFiltrosCatalogo(false),
   });
 
-  // 4. Colecciones por nivel y taxonomía
+  // 4. Colecciones
   console.log("Generando catálogos paginados para colecciones y taxonomías...");
   const titulosColecciones = {
     joyo: "Kanjis Jōyō (常用漢字)",
@@ -737,11 +708,7 @@ ${bloqueTraducciones}
       tituloCatalogo: titulosColecciones[clave] || `Colección: ${clave}`,
       items: listado,
       tipoGrid: "grid-catalogo-kanjis",
-      renderTarjeta: (it) => `  <a href="./kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
-    <div class="glifo-item-kanji">${it.kanji}</div>
-    <div class="significado-item-kanji">${it.significado || "—"}</div>
-  </a>\n`,
-      obtenerEnlaceGrafo: (it) => `[[kanji/${nombreSeguro(it.kanji)}|${it.kanji}]]`,
+      renderItemMarkdown: (it) => `[[kanji/${nombreSeguro(it.kanji)}|<div class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></div>]]`,
     });
   }
 
@@ -757,38 +724,26 @@ enableFolderListing: false
 Base de datos viva e interconectada a partir de Google Sheets.
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 2rem 0;">
-  <a href="./kanji/" class="card-dashboard" style="text-decoration: none; padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: all 0.2s ease;">
-    <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary); text-shadow: 0 0 14px rgba(93, 255, 154, 0.4);">漢</div>
-    <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Kanjis</div>
-    <div style="font-size: 0.85rem; color: var(--gray);">${listaKanjisCatalogo.length} entradas analizadas</div>
-  </a>
-  <a href="./vocab/" class="card-dashboard" style="text-decoration: none; padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: all 0.2s ease;">
-    <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--tertiary); text-shadow: 0 0 14px rgba(255, 79, 216, 0.4);">語</div>
-    <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Vocabulario</div>
-    <div style="font-size: 0.85rem; color: var(--gray);">${listaVocabCatalogo.length} términos y lecturas</div>
-  </a>
-  <a href="./componentes/" class="card-dashboard" style="text-decoration: none; padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: all 0.2s ease;">
-    <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary); text-shadow: 0 0 14px rgba(93, 255, 154, 0.4);">部</div>
-    <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Radicales</div>
-    <div style="font-size: 0.85rem; color: var(--gray);">${catalogoComponentes.length} componentes glíficos</div>
-  </a>
+  [[kanji/|<div class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block;"><div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary);">漢</div><div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Kanjis</div><div style="font-size: 0.85rem; color: var(--gray);">${listaKanjisCatalogo.length} entradas analizadas</div></div>]]
+  [[vocab/|<div class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block;"><div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--tertiary);">語</div><div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Vocabulario</div><div style="font-size: 0.85rem; color: var(--gray);">${listaVocabCatalogo.length} términos y lecturas</div></div>]]
+  [[componentes/|<div class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block;"><div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary);">部</div><div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Radicales</div><div style="font-size: 0.85rem; color: var(--gray);">${catalogoComponentes.length} componentes glíficos</div></div>]]
 </div>
 
 ### Exploración rápida por nivel (JLPT)
 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 1rem 0 2rem 0;">
-  <a href="./colecciones/jlpt-n5/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N5 (${colecciones["jlpt-n5"].length})</a>
-  <a href="./colecciones/jlpt-n4/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N4 (${colecciones["jlpt-n4"].length})</a>
-  <a href="./colecciones/jlpt-n3/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N3 (${colecciones["jlpt-n3"].length})</a>
-  <a href="./colecciones/jlpt-n2/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N2 (${colecciones["jlpt-n2"].length})</a>
-  <a href="./colecciones/jlpt-n1/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N1 (${colecciones["jlpt-n1"].length})</a>
+  [[colecciones/jlpt-n5/|<span class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary);">N5 (${colecciones["jlpt-n5"].length})</span>]]
+  [[colecciones/jlpt-n4/|<span class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary);">N4 (${colecciones["jlpt-n4"].length})</span>]]
+  [[colecciones/jlpt-n3/|<span class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary);">N3 (${colecciones["jlpt-n3"].length})</span>]]
+  [[colecciones/jlpt-n2/|<span class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary);">N2 (${colecciones["jlpt-n2"].length})</span>]]
+  [[colecciones/jlpt-n1/|<span class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary);">N1 (${colecciones["jlpt-n1"].length})</span>]]
 </div>
 
 ### Taxonomía de caracteres
 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 1rem 0;">
-  <a href="./colecciones/joyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Jōyō (${colecciones.joyo.length})</a>
-  <a href="./colecciones/jinmeiyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Jinmeiyō (${colecciones.jinmeiyo.length})</a>
-  <a href="./colecciones/kyuujitai/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Kyūjitai (${colecciones.kyuujitai.length})</a>
-  <a href="./colecciones/hyougaiji/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Hyōgaiji (${colecciones.hyougaiji.length})</a>
+  [[colecciones/joyo/|<span class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary);">Jōyō (${colecciones.joyo.length})</span>]]
+  [[colecciones/jinmeiyo/|<span class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary);">Jinmeiyō (${colecciones.jinmeiyo.length})</span>]]
+  [[colecciones/kyuujitai/|<span class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary);">Kyūjitai (${colecciones.kyuujitai.length})</span>]]
+  [[colecciones/hyougaiji/|<span class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary);">Hyōgaiji (${colecciones.hyougaiji.length})</span>]]
 </div>
 `;
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
