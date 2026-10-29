@@ -4,11 +4,9 @@ import { parse } from "csv-parse/sync";
 
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
-
 const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
-
 const SIN_JLPT = "Sin nivel JLPT";
 
 const ETIQUETAS_IMG = {
@@ -18,8 +16,8 @@ const ETIQUETAS_IMG = {
   sousho: "Sōsho (cursiva)",
   kso_images: "KSO",
 };
-const ORDEN_IMG = ["origin", "tensho", "gyosho", "sousho", "kso_images"];
 
+const ORDEN_IMG = ["origin", "tensho", "gyosho", "sousho", "kso_images"];
 const CONTENT_DIR = "./content";
 
 ["vocab", "kanji", "componentes", "colecciones"].forEach((dir) => {
@@ -45,13 +43,13 @@ function yamlStr(s) {
 
 function extraerKanjis(texto) {
   if (!texto) return [];
-  const regex = /[\u4E00-\u9FAF\u3400-\u4DBF\u{20000}-\u{2A6DF}]/gu;
+  const regex = /[一-龯㐀-䶿\u{20000}-\u{2A6DF}]/gu;
   return Array.from(new Set(texto.match(regex) || []));
 }
 
 function filtrarComponentesValidos(texto) {
   if (!texto) return [];
-  const regex = /[\u2E80-\u2FD5\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u{20000}-\u{2EBEF}]/gu;
+  const regex = /[⺀-⿕㐀-䶿一-鿿豈-﫿\u{20000}-\u{2EBEF}]/gu;
   return Array.from(new Set(texto.match(regex) || []));
 }
 
@@ -68,11 +66,10 @@ function etiquetaJlpt(valor) {
 function getValor(row, posiblesNombres) {
   const lista = Array.isArray(posiblesNombres) ? posiblesNombres : [posiblesNombres];
   const clavesFila = Object.keys(row);
-
   for (const nombre of lista) {
     const target = nombre.trim().toLowerCase();
     const claveEncontrada = clavesFila.find(
-      (k) => k.replace(/^\uFEFF/, "").trim().toLowerCase() === target
+      (k) => k.replace(/^﻿/, "").trim().toLowerCase() === target
     );
     if (claveEncontrada && row[claveEncontrada] !== undefined && row[claveEncontrada] !== null) {
       const val = String(row[claveEncontrada]).trim();
@@ -89,9 +86,8 @@ function esVerdadero(val) {
 
 function limpiarEtimologiaWiktionary(raw) {
   if (!raw) return "Sin datos registrados.";
-
   let texto = raw
-    .replace(/\[\[(?:[^\vert{}\]]*\Vert{})*([^\]]+)\]\]/g, "$1")
+    .replace(/\[\[(?:[^|{}]*\|)*([^\]]+)\]\]/g, "$1")
     .replace(/\{\{[^}]*\}\}/g, "")
     .replace(/(?:thumb|left|right)\|[^|]+\|/gi, "")
     .replace(/\b(zh|yue|cmn|hak|nan):\s*/gi, "")
@@ -102,11 +98,9 @@ function limpiarEtimologiaWiktionary(raw) {
     .replace(/\n{3,}/g, "\n\n")
     .replace(/^[ \t]*-[ \t]*/gm, "- ")
     .trim();
-
   return texto || "Sin datos registrados.";
 }
 
-// Barra de paginación que detecta dinámicamente la ruta en el navegador
 function renderBarraPaginacion(numPagina, totalPaginas) {
   const enlaceAnterior = numPagina === 1
     ? `<span class="btn-nav-desactivado">← Anterior</span>`
@@ -170,19 +164,16 @@ function renderFiltrosCatalogo(incluirTaxonomia = true) {
       : ""
   }
 </div>
-
 <script>
   (function() {
     function initFiltrosCatalogo() {
       const panel = document.querySelector('.contenedor-filtros-catalogo');
       if (!panel || panel.dataset.bound) return;
       panel.dataset.bound = "true";
-
       const tarjetas = Array.from(document.querySelectorAll('.card-catalogo-item, .card-catalogo-vocab'));
       const botones = Array.from(panel.querySelectorAll('.btn-chip-filtro'));
       const btnReset = panel.querySelector('#btn-limpiar-chips');
       let filtrosActivos = new Set();
-
       function aplicar() {
         const arr = Array.from(filtrosActivos);
         tarjetas.forEach(t => {
@@ -191,7 +182,6 @@ function renderFiltrosCatalogo(incluirTaxonomia = true) {
           t.style.display = visible ? '' : 'none';
         });
       }
-
       botones.forEach(b => {
         b.addEventListener('click', () => {
           const f = b.dataset.filtro;
@@ -205,7 +195,6 @@ function renderFiltrosCatalogo(incluirTaxonomia = true) {
           aplicar();
         });
       });
-
       if (btnReset) {
         btnReset.addEventListener('click', () => {
           filtrosActivos.clear();
@@ -214,7 +203,6 @@ function renderFiltrosCatalogo(incluirTaxonomia = true) {
         });
       }
     }
-
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initFiltrosCatalogo);
     } else {
@@ -228,10 +216,8 @@ function renderFiltrosCatalogo(incluirTaxonomia = true) {
 
 function seccionPracticadorKanji(caracter) {
   const containerId = `kanji-quiz-${caracter.codePointAt(0)}`;
-
   return `
 ## Práctica de trazo
-
 <div class="kanji-quiz-container" style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 1.5rem 0; padding: 1.2rem; background: rgba(0,0,0,0.03); border: 1px solid var(--lightgray); border-radius: 8px;">
   <div id="${containerId}" style="border: 2px solid var(--gray); border-radius: 8px; box-shadow: inset 0 0 10px rgba(0,0,0,0.04); position: relative; width: 180px; height: 180px;"></div>
   
@@ -241,18 +227,15 @@ function seccionPracticadorKanji(caracter) {
     <button type="button" id="btn-reset-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--gray); background: transparent; color: var(--dark); cursor: pointer; font-size: 0.85rem;">Limpiar</button>
   </div>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
 <script>
   (function() {
     let writerInstance = null;
-
     function getThemePalette() {
       const isDark = document.documentElement.getAttribute('saved-theme') === 'dark' ||
                      document.documentElement.getAttribute('theme') === 'dark' ||
                      document.body.classList.contains('dark') ||
                      document.documentElement.classList.contains('dark');
-
       if (isDark) {
         return {
           background: '#231634',
@@ -271,7 +254,6 @@ function seccionPracticadorKanji(caracter) {
         };
       }
     }
-
     function initWriter() {
       if (typeof HanziWriter === 'undefined') {
         setTimeout(initWriter, 50);
@@ -279,11 +261,9 @@ function seccionPracticadorKanji(caracter) {
       }
       const el = document.getElementById('${containerId}');
       if (!el) return;
-
       el.innerHTML = '';
       const p = getThemePalette();
       el.style.backgroundColor = p.background;
-
       writerInstance = HanziWriter.create('${containerId}', '${caracter}', {
         width: 180,
         height: 180,
@@ -298,11 +278,9 @@ function seccionPracticadorKanji(caracter) {
         highlightColor: p.drawingColor,
         showCharacter: true
       });
-
       const btnQuiz = document.getElementById('btn-quiz-${containerId}');
       const btnAnim = document.getElementById('btn-anim-${containerId}');
       const btnReset = document.getElementById('btn-reset-${containerId}');
-
       if (btnQuiz && !btnQuiz.dataset.bound) {
         btnQuiz.dataset.bound = "true";
         btnQuiz.addEventListener('click', () => {
@@ -310,14 +288,12 @@ function seccionPracticadorKanji(caracter) {
           writerInstance.quiz({ showOutline: true, showHintAfterMisses: 1 });
         });
       }
-
       if (btnAnim && !btnAnim.dataset.bound) {
         btnAnim.dataset.bound = "true";
         btnAnim.addEventListener('click', () => {
           if (writerInstance) writerInstance.animateCharacter();
         });
       }
-
       if (btnReset && !btnReset.dataset.bound) {
         btnReset.dataset.bound = "true";
         btnReset.addEventListener('click', () => {
@@ -328,14 +304,12 @@ function seccionPracticadorKanji(caracter) {
         });
       }
     }
-
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initWriter);
     } else {
       initWriter();
     }
     document.addEventListener('nav', initWriter);
-
     const themeObserver = new MutationObserver(() => initWriter());
     themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['saved-theme', 'theme', 'class'] });
   })();
@@ -344,7 +318,6 @@ function seccionPracticadorKanji(caracter) {
 }
 
 const indiceImagenes = new Map();
-
 async function cargarIndiceImagenes() {
   try {
     const headers = {
@@ -360,24 +333,20 @@ async function cargarIndiceImagenes() {
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-
     for (const item of data.tree || []) {
       if (item.type !== "blob") continue;
       const partes = item.path.split("/");
       if (partes[0] !== "images" || partes.length < 3) continue;
-
       const carpeta = partes[1];
       const archivo = partes[partes.length - 1];
       const m = archivo.match(/^(.+)\.(png|jpg|jpeg|webp|svg)$/i);
       if (!m) continue;
       const stem = m[1];
-
       let clave = null;
       const num = stem.match(/^(\d+)/);
       if (num) clave = num[1];
       else if (Array.from(stem).length === 1) clave = String(stem.codePointAt(0));
       if (!clave) continue;
-
       if (!indiceImagenes.has(clave)) indiceImagenes.set(clave, []);
       indiceImagenes.get(clave).push({ carpeta, archivo, ruta: item.path });
     }
@@ -389,31 +358,26 @@ async function cargarIndiceImagenes() {
 function seccionImagenes(caracter) {
   const lista = indiceImagenes.get(String(caracter.codePointAt(0)));
   if (!lista || lista.length === 0) return "";
-
   const porCarpeta = new Map();
   for (const it of lista) {
     if (!porCarpeta.has(it.carpeta)) porCarpeta.set(it.carpeta, []);
     porCarpeta.get(it.carpeta).push(it);
   }
-
   const carpetas = Array.from(porCarpeta.keys()).sort((a, b) => {
     const ia = ORDEN_IMG.indexOf(a);
     const ib = ORDEN_IMG.indexOf(b);
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
   });
-
   let md = "\n## Escritura\n";
   for (const carpeta of carpetas) {
     const etiqueta = ETIQUETAS_IMG[carpeta] || carpeta;
     const esOrigen = carpeta === "origin";
     const claseTipo = esOrigen ? "img-origen" : "img-estilo";
     const items = porCarpeta.get(carpeta).sort((a, b) => a.archivo.localeCompare(b.archivo));
-
     const imgs = items.map((it) => {
       const url = `${ASSETS_CDN}/${it.ruta.split("/").map(encodeURIComponent).join("/")}`;
       return `<img src="${url}" alt="${caracter} ${etiqueta}" class="${claseTipo}" loading="lazy" />`;
     });
-
     md += `\n### ${etiqueta}\n<div class="contenedor-imagenes ${esOrigen ? 'contenedor-origen' : 'contenedor-estilos'}">\n${imgs.join("\n")}\n</div>\n`;
   }
   return md;
@@ -427,28 +391,28 @@ function generarCatalogoPaginado({
   porPagina = 50,
   renderTarjeta,
   obtenerEnlaceGrafo,
-  filtrosHtml = ""
+  filtrosHtml = "",
+  tipoGrid = "grid-catalogo-general"
 }) {
   if (!fs.existsSync(directorioDestino)) {
     fs.mkdirSync(directorioDestino, { recursive: true });
   }
-
   const totalPaginas = Math.ceil(items.length / porPagina) || 1;
-
   for (let i = 0; i < totalPaginas; i++) {
     const numPagina = i + 1;
     const inicio = i * porPagina;
     const lote = items.slice(inicio, inicio + porPagina);
     const navBar = renderBarraPaginacion(numPagina, totalPaginas);
-
-    let gridHtml = `<div class="grid-catalogo-general">\n`;
+    
+    let gridHtml = `<div class="${tipoGrid}">\n`;
     lote.forEach((item) => {
       gridHtml += renderTarjeta(item);
     });
     gridHtml += `</div>\n`;
 
+    // Conexiones en bloque oculto para activar los 50 nodos en el Grafo y Backlinks sin redundancia visual
     const enlacesGrafoMarkdown = lote.map(it => `- ${obtenerEnlaceGrafo(it)}`).join("\n");
-
+    
     const contenidoIndice = `---
 title: "${tituloCatalogo} (Pág. ${numPagina})"
 showDate: false
@@ -456,20 +420,20 @@ showReadingTime: false
 showToc: false
 enableFolderListing: false
 ---
-
 # ${tituloCatalogo}
-
 Mostrando **${lote.length}** de **${items.length}** entradas registradas.
-
 ${filtrosHtml}
 ${navBar}
 ${gridHtml}
 ${navBar}
 
+<div class="seccion-oculta-grafo">
+
 ### Conexiones de esta página
 ${enlacesGrafoMarkdown}
-`;
 
+</div>
+`;
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
     escribirSiCambio(path.join(directorioDestino, nombreArchivo), contenidoIndice);
   }
@@ -528,7 +492,6 @@ async function main() {
     const kyujitaiAntiguo = getValor(row, ["Kyujitai (Kanji Antiguo)", "Kyujitai"]);
     const etimologiaRaw = getValor(row, ["Etimología", "Etimologia", "Etymology"]);
     const etimologia = limpiarEtimologiaWiktionary(etimologiaRaw);
-
     const esKyujitai = esVerdadero(getValor(row, ["Kyūjitai (旧字体)", "Kyujitai (旧字体)", "Kyujitai"]));
     const esHyougaiji = esVerdadero(getValor(row, ["Hyōgaiji (表外字)", "Hyougaiji (表外字)", "Hyogaiji", "Hyougaiji"]));
     const esJoyo = esVerdadero(getValor(row, ["Jōyō Kanji (常用漢字)", "Joyo Kanji (常用漢字)", "Joyo", "Jōyō"]));
@@ -540,7 +503,6 @@ async function main() {
     if (esJinmeiyo) tags.push("jinmeiyo");
     if (esHyougaiji) tags.push("hyougaiji");
     if (esKyujitai) tags.push("kyuujitai");
-
     const tagJlpt = etiquetaJlpt(jlptKanji);
     if (tagJlpt) tags.push(tagJlpt);
 
@@ -553,7 +515,6 @@ async function main() {
     };
 
     listaKanjisCatalogo.push(itemData);
-
     if (esJoyo) colecciones.joyo.push(itemData);
     if (esJinmeiyo) colecciones.jinmeiyo.push(itemData);
     if (esKyujitai) colecciones.kyuujitai.push(itemData);
@@ -569,10 +530,10 @@ async function main() {
 
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
-
     const compsLinks = comps.length > 0
       ? comps.map((c) => `[[componentes/${nombreSeguro(c)}|${c}]]`).join(", ")
       : "Ninguno";
+
     const kyujitaiLink = kyujitaiAntiguo ? `[[kanji/${nombreSeguro(kyujitaiAntiguo)}|${kyujitaiAntiguo}]]` : "None";
 
     const md = `---
@@ -584,25 +545,20 @@ jlpt: "${yamlStr(jlptKanji || SIN_JLPT)}"
 tags:
 ${tags.map((t) => `  - ${t}`).join("\n")}
 ---
-
 # ${kanji}
-
 > **${significado}**
 
 **Clasificación:** ${textoClasificacion}
-
 ${jlptKanji && jlptKanji !== SIN_JLPT ? `**JLPT:** ${jlptKanji}\n` : ""}**On:** ${onyomi || "—"}
-
 **Kun:** ${kunyomi || "—"}
-
 **Kyūjitai:** ${kyujitaiLink}
-
 **Componentes:** ${compsLinks}
 
 ---
 
 ## Etimología
 ${etimologia}
+
 ${seccionPracticadorKanji(kanji)}
 ${seccionImagenes(kanji)}`;
 
@@ -614,7 +570,8 @@ ${seccionImagenes(kanji)}`;
     directorioDestino: path.join(CONTENT_DIR, "kanji"),
     tituloCatalogo: "Catálogo de Kanjis",
     items: listaKanjisCatalogo,
-    renderTarjeta: (it) => `  <a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
+    tipoGrid: "grid-catalogo-kanjis",
+    renderTarjeta: (it) => `  <a href="./kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
     <div class="glifo-item-kanji">${it.kanji}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
@@ -633,12 +590,10 @@ tags:
   - radical
 ---
 # Componente: ${comp}
-
 > **${significadoComp}**
 
 Revisa los backlinks o el gráfico para ver los kanjis que contienen este componente.
 ${seccionImagenes(comp)}`;
-
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
     return { comp, significado: significadoComp };
   });
@@ -647,7 +602,8 @@ ${seccionImagenes(comp)}`;
     directorioDestino: path.join(CONTENT_DIR, "componentes"),
     tituloCatalogo: "Catálogo de Radicales y Componentes",
     items: catalogoComponentes,
-    renderTarjeta: (it) => `  <a href="/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item">
+    tipoGrid: "grid-catalogo-kanjis",
+    renderTarjeta: (it) => `  <a href="./componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item">
     <div class="glifo-item-kanji">${it.comp}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
@@ -666,7 +622,6 @@ ${seccionImagenes(comp)}`;
   });
 
   const listaVocabCatalogo = [];
-
   vocabRecords.forEach((row) => {
     const palabra = getValor(row, ["日本語", "Palabra", "Vocabulario"]);
     if (!palabra) return;
@@ -698,7 +653,6 @@ ${seccionImagenes(comp)}`;
       jlpt,
       tags: tagsVocab.join(" "),
     };
-
     listaVocabCatalogo.push(itemVocab);
 
     const kanjis = extraerKanjis(palabra);
@@ -727,16 +681,12 @@ tipo: vocabulario
 tags:
   - vocabulario${jlptTag ? `\n  - ${jlptTag}` : ""}
 ---
-
 ${encabezadoTitulo}
-
 ${bloqueTraducciones}
 
 **Kanjis:** ${kanjiLinks}
-
 **JLPT:** ${jlpt}
 `;
-
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
   });
 
@@ -744,6 +694,7 @@ ${bloqueTraducciones}
     directorioDestino: path.join(CONTENT_DIR, "vocab"),
     tituloCatalogo: "Catálogo de Vocabulario",
     items: listaVocabCatalogo,
+    tipoGrid: "grid-catalogo-vocab",
     renderTarjeta: (it) => {
       const partesIdiomas = [
         it.en ? `EN: ${it.en}` : null,
@@ -753,12 +704,10 @@ ${bloqueTraducciones}
         it.simpChinese ? `简: ${it.simpChinese}` : null,
         it.pinyin ? `Pin: ${it.pinyin}` : null,
       ].filter(Boolean);
-
       const glosa = partesIdiomas.length > 0
         ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
         : "";
-
-      return `  <a href="/vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}">
+      return `  <a href="./vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}">
     <div class="cabecera-card-vocab">
       <span class="palabra-card-vocab">${it.palabra}</span>
       <span class="kana-card-vocab">${it.kana || ""}</span>
@@ -791,7 +740,8 @@ ${bloqueTraducciones}
       directorioDestino: path.join(CONTENT_DIR, "colecciones", clave),
       tituloCatalogo: titulosColecciones[clave] || `Colección: ${clave}`,
       items: listado,
-      renderTarjeta: (it) => `  <a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
+      tipoGrid: "grid-catalogo-kanjis",
+      renderTarjeta: (it) => `  <a href="./kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}">
     <div class="glifo-item-kanji">${it.kanji}</div>
     <div class="significado-item-kanji">${it.significado || "—"}</div>
   </a>\n`,
@@ -807,9 +757,7 @@ showReadingTime: false
 showToc: false
 enableFolderListing: false
 ---
-
 # Jardín Digital de Kanji y Léxico
-
 Base de datos viva e interconectada a partir de Google Sheets.
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 2rem 0;">
@@ -818,13 +766,11 @@ Base de datos viva e interconectada a partir de Google Sheets.
     <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Kanjis</div>
     <div style="font-size: 0.85rem; color: var(--gray);">${listaKanjisCatalogo.length} entradas analizadas</div>
   </a>
-
   <a href="./vocab/" class="card-dashboard" style="text-decoration: none; padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: all 0.2s ease;">
     <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--tertiary); text-shadow: 0 0 14px rgba(255, 79, 216, 0.4);">語</div>
     <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Vocabulario</div>
     <div style="font-size: 0.85rem; color: var(--gray);">${listaVocabCatalogo.length} términos y lecturas</div>
   </a>
-
   <a href="./componentes/" class="card-dashboard" style="text-decoration: none; padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; transition: all 0.2s ease;">
     <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary); text-shadow: 0 0 14px rgba(93, 255, 154, 0.4);">部</div>
     <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Radicales</div>
@@ -833,7 +779,6 @@ Base de datos viva e interconectada a partir de Google Sheets.
 </div>
 
 ### Exploración rápida por nivel (JLPT)
-
 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 1rem 0 2rem 0;">
   <a href="./colecciones/jlpt-n5/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N5 (${colecciones["jlpt-n5"].length})</a>
   <a href="./colecciones/jlpt-n4/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); text-decoration: none; font-weight: bold; font-size: 0.9rem; color: var(--tertiary); transition: all 0.2s ease;">N4 (${colecciones["jlpt-n4"].length})</a>
@@ -843,7 +788,6 @@ Base de datos viva e interconectada a partir de Google Sheets.
 </div>
 
 ### Taxonomía de caracteres
-
 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 1rem 0;">
   <a href="./colecciones/joyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Jōyō (${colecciones.joyo.length})</a>
   <a href="./colecciones/jinmeiyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); text-decoration: none; font-weight: bold; color: var(--secondary); transition: all 0.2s ease;">Jinmeiyō (${colecciones.jinmeiyo.length})</a>
