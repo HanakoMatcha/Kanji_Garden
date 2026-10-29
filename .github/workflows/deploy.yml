@@ -220,10 +220,13 @@ jobs:
           /* =========================================================
              LIMPIEZA DE LISTADOS AUTOMÁTICOS EN CATÁLOGOS PAGINADOS
              ========================================================= */
-          /* Oculta el contador "X items under this folder" y el listado no deseado */
-          .page-listing,
-          .page-listing + ul,
-          .section-ul:has(.section-li:nth-child(51)) {
+          /* Oculta únicamente el listado inferior dentro de los catálogos paginados, preservando /tags/ */
+          body[data-slug^="kanji"] .page-listing,
+          body[data-slug^="kanji"] .page-listing + ul,
+          body[data-slug^="vocab"] .page-listing,
+          body[data-slug^="vocab"] .page-listing + ul,
+          body[data-slug^="componentes"] .page-listing,
+          body[data-slug^="componentes"] .page-listing + ul {
             display: none !important;
           }
 
@@ -375,7 +378,6 @@ jobs:
           }
 
           .card-catalogo-item {
-            text-decoration: none !important;
             border: 1px solid var(--lightgray);
             padding: 14px 10px;
             border-radius: 8px;
@@ -390,6 +392,12 @@ jobs:
             background: rgba(93, 255, 154, 0.05);
             transform: translateY(-2px);
             box-shadow: 0 0 10px rgba(93, 255, 154, 0.25);
+          }
+
+          .card-catalogo-item a,
+          .card-catalogo-vocab a {
+            text-decoration: none !important;
+            color: inherit !important;
           }
 
           .glifo-item-kanji {
@@ -415,7 +423,6 @@ jobs:
           }
 
           .card-catalogo-vocab {
-            text-decoration: none !important;
             border: 1px solid var(--lightgray);
             padding: 16px;
             border-radius: 8px;
