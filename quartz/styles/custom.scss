@@ -8,18 +8,52 @@
 }
 
 .graph > .graph-outer {
-  height: 260px !important; /* Reduce la altura vacía excesiva */
+  height: 260px !important;
 }
 
-/* Ocultar metadatos en la portada cuando se active showDate: false */
+/* Ocultar metadatos en la portada */
 body[data-slug="index"] .content-meta {
   display: none !important;
 }
 
-/* Ocultar fechas en páginas de etiquetas y listados de carpetas */
-          .section-li .meta,
-          .section-li time,
-          .page-listing .meta,
-          .page-listing time {
-            display: none !important;
-          }
+/* Ocultar fechas y metadatos en listados */
+.section-li .meta,
+.section-li time,
+.page-listing .meta,
+.page-listing time {
+  display: none !important;
+}
+
+/* Ocultar sección técnica que alimenta el grafo y backlinks */
+.seccion-oculta-grafo {
+  display: none !important;
+}
+
+/* Grilla en 3 o 4 columnas para tarjetas de kanji, radicales y colecciones */
+.grid-catalogo-general,
+.grid-catalogo-kanjis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin: 1.5rem 0;
+}
+
+@media (min-width: 640px) {
+  .grid-catalogo-general,
+  .grid-catalogo-kanjis {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .grid-catalogo-general,
+  .grid-catalogo-kanjis {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Supresión de duplicación de listados automáticos en colecciones */
+body[data-slug^="colecciones"] .page-listing,
+body[data-slug^="colecciones"] .page-listing + ul {
+  display: none !important;
+}
