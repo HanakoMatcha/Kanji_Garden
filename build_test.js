@@ -69,7 +69,7 @@ function getValor(row, posiblesNombres) {
   for (const nombre of lista) {
     const target = nombre.trim().toLowerCase();
     const claveEncontrada = clavesFila.find(
-      (k) => k.replace(/^﻿/, "").trim().toLowerCase() === target
+      (k) => k.replace(/^\uFEFF/, "").trim().toLowerCase() === target
     );
     if (claveEncontrada && row[claveEncontrada] !== undefined && row[claveEncontrada] !== null) {
       const val = String(row[claveEncontrada]).trim();
@@ -222,7 +222,7 @@ function seccionPracticadorKanji(caracter) {
 ## Práctica de trazo
 <div class="kanji-quiz-container" style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 1.5rem 0; padding: 1.2rem; background: rgba(0,0,0,0.03); border: 1px solid var(--lightgray); border-radius: 8px;">
   <div id="${containerId}" style="border: 2px solid var(--gray); border-radius: 8px; box-shadow: inset 0 0 10px rgba(0,0,0,0.04); position: relative; width: 180px; height: 180px;"></div>
-  
+
   <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
     <button type="button" id="btn-quiz-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--secondary); background: var(--secondary); color: var(--light); cursor: pointer; font-size: 0.85rem; font-weight: bold;">Trazar</button>
     <button type="button" id="btn-anim-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--gray); background: transparent; color: var(--dark); cursor: pointer; font-size: 0.85rem;">Ver orden</button>
@@ -380,7 +380,7 @@ function seccionImagenes(caracter) {
       const url = `${ASSETS_CDN}/${it.ruta.split("/").map(encodeURIComponent).join("/")}`;
       return `<img src="${url}" alt="${caracter} ${etiqueta}" class="${claseTipo}" loading="lazy" />`;
     });
-    md += `\n### ${etiqueta}\n<div class="contenedor-imagenes ${esOrigen ? 'contenedor-origen' : 'contenedor-estilos'}">\n${imgs.join("\n")}\n</div>\n`;
+    md += `\n### ${etiqueta}\n<div class="contenedor-imagenes ${esOrigen ? "contenedor-origen" : "contenedor-estilos"}">\n${imgs.join("\n")}\n</div>\n`;
   }
   return md;
 }
@@ -393,7 +393,7 @@ function generarCatalogoPaginado({
   porPagina = 50,
   renderItemMarkdown,
   filtrosHtml = "",
-  tipoGrid = "grid-catalogo-general"
+  tipoGrid = "grid-catalogo-general",
 }) {
   if (!fs.existsSync(directorioDestino)) {
     fs.mkdirSync(directorioDestino, { recursive: true });
@@ -404,14 +404,16 @@ function generarCatalogoPaginado({
     const inicio = i * porPagina;
     const lote = items.slice(inicio, inicio + porPagina);
     const navBar = renderBarraPaginacion(numPagina, totalPaginas);
-    
-    const itemsMarkdown = lote.map(it => renderItemMarkdown(it)).join("\n");
 
-    const enlacesOcultosGrafo = lote.map(it => {
-      const id = it.kanji || it.comp || it.palabra;
-      const sub = it.kanji ? "kanji" : (it.comp ? "componentes" : "vocab");
-      return `[[${sub}/${nombreSeguro(id)}|${id}]]`;
-    }).join(" ");
+    const itemsMarkdown = lote.map((it) => renderItemMarkdown(it)).join("\n");
+
+    const enlacesOcultosGrafo = lote
+      .map((it) => {
+        const id = it.kanji || it.comp || it.palabra;
+        const sub = it.kanji ? "kanji" : it.comp ? "componentes" : "vocab";
+        return `[[${sub}/${nombreSeguro(id)}|${id}]]`;
+      })
+      .join(" ");
 
     const contenidoIndice = `---
 title: "${tituloCatalogo} (Pág. ${numPagina})"
@@ -528,7 +530,9 @@ async function main() {
       ? comps.map((c) => `[[componentes/${nombreSeguro(c)}|${c}]]`).join(", ")
       : "Ninguno";
 
-    const kyujitaiLink = kyujitaiAntiguo ? `[[kanji/${nombreSeguro(kyujitaiAntiguo)}|${kyujitaiAntiguo}]]` : "None";
+    const kyujitaiLink = kyujitaiAntiguo
+      ? `[[kanji/${nombreSeguro(kyujitaiAntiguo)}|${kyujitaiAntiguo}]]`
+      : "—";
 
     const md = `---
 title: "${yamlStr(kanji)}"
@@ -565,7 +569,8 @@ ${seccionImagenes(kanji)}`;
     tituloCatalogo: "Catálogo de Kanjis",
     items: listaKanjisCatalogo,
     tipoGrid: "grid-catalogo-kanjis",
-    renderItemMarkdown: (it) => `<a href="./${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
+    renderItemMarkdown: (it) =>
+      `<a href="./${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
     filtrosHtml: renderFiltrosCatalogo(true),
   });
 
@@ -593,7 +598,8 @@ ${seccionImagenes(comp)}`;
     tituloCatalogo: "Catálogo de Radicales y Componentes",
     items: catalogoComponentes,
     tipoGrid: "grid-catalogo-kanjis",
-    renderItemMarkdown: (it) => `<a href="./${nombreSeguro(it.comp)}" class="card-catalogo-item"><div class="glifo-item-kanji">${it.comp}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
+    renderItemMarkdown: (it) =>
+      `<a href="./${nombreSeguro(it.comp)}" class="card-catalogo-item"><div class="glifo-item-kanji">${it.comp}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
   });
 
   // 3. Vocabulario
@@ -719,7 +725,8 @@ ${bloqueTraducciones}
       tituloCatalogo: titulosColecciones[clave] || `Colección: ${clave}`,
       items: listado,
       tipoGrid: "grid-catalogo-kanjis",
-      renderItemMarkdown: (it) => `<a href="../../kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
+      renderItemMarkdown: (it) =>
+        `<a href="../../kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
     });
   }
 
