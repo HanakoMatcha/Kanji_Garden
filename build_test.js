@@ -385,7 +385,7 @@ function seccionImagenes(caracter) {
   return md;
 }
 
-// Generador de catálogos con enlaces canónicos y sección oculta para el grafo
+// Generador de catálogos con enlaces limpios y sección oculta para el grafo
 function generarCatalogoPaginado({
   directorioDestino,
   tituloCatalogo,
@@ -571,7 +571,7 @@ ${seccionImagenes(kanji)}`;
     items: listaKanjisCatalogo,
     tipoGrid: "grid-catalogo-kanjis",
     renderItemMarkdown: (it) =>
-      `<a href="/Kanji_Garden/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
+      `<a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
     filtrosHtml: renderFiltrosCatalogo(true),
   });
 
@@ -600,7 +600,7 @@ ${seccionImagenes(comp)}`;
     items: catalogoComponentes,
     tipoGrid: "grid-catalogo-kanjis",
     renderItemMarkdown: (it) =>
-      `<a href="/Kanji_Garden/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item"><div class="glifo-item-kanji">${it.comp}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
+      `<a href="/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item"><div class="glifo-item-kanji">${it.comp}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
   });
 
   // 3. Vocabulario
@@ -700,7 +700,7 @@ ${bloqueTraducciones}
       const glosa = partesIdiomas.length > 0
         ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
         : "";
-      return `<a href="/Kanji_Garden/vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}"><div class="cabecera-card-vocab"><span class="palabra-card-vocab">${it.palabra}</span><span class="kana-card-vocab">${it.kana || ""}</span></div><div class="traduccion-es-card">${it.es || it.en || "—"}</div>${glosa}</a>`;
+      return `<a href="/vocab/${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}"><div class="cabecera-card-vocab"><span class="palabra-card-vocab">${it.palabra}</span><span class="kana-card-vocab">${it.kana || ""}</span></div><div class="traduccion-es-card">${it.es || it.en || "—"}</div>${glosa}</a>`;
     },
     filtrosHtml: renderFiltrosCatalogo(false),
   });
@@ -727,7 +727,7 @@ ${bloqueTraducciones}
       items: listado,
       tipoGrid: "grid-catalogo-kanjis",
       renderItemMarkdown: (it) =>
-        `<a href="/Kanji_Garden/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
+        `<a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
     });
   }
 
@@ -743,17 +743,17 @@ enableFolderListing: false
 Base de datos viva e interconectada a partir de Google Sheets.
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 2rem 0;">
-  <a href="/Kanji_Garden/kanji/" class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; text-decoration: none;">
+  <a href="./kanji/" class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; text-decoration: none;">
     <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary);">漢</div>
     <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Kanjis</div>
     <div style="font-size: 0.85rem; color: var(--gray);">${listaKanjisCatalogo.length} entradas analizadas</div>
   </a>
-  <a href="/Kanji_Garden/vocab/" class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; text-decoration: none;">
+  <a href="./vocab/" class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; text-decoration: none;">
     <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--tertiary);">語</div>
     <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Vocabulario</div>
     <div style="font-size: 0.85rem; color: var(--gray);">${listaVocabCatalogo.length} términos y lecturas</div>
   </a>
-  <a href="/Kanji_Garden/componentes/" class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; text-decoration: none;">
+  <a href="./componentes/" class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; text-decoration: none;">
     <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary);">部</div>
     <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Radicales</div>
     <div style="font-size: 0.85rem; color: var(--gray);">${catalogoComponentes.length} componentes glíficos</div>
@@ -762,19 +762,19 @@ Base de datos viva e interconectada a partir de Google Sheets.
 
 ### Exploración rápida por nivel (JLPT)
 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 1rem 0 2rem 0;">
-  <a href="/Kanji_Garden/colecciones/jlpt-n5/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N5 (${colecciones["jlpt-n5"].length})</a>
-  <a href="/Kanji_Garden/colecciones/jlpt-n4/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N4 (${colecciones["jlpt-n4"].length})</a>
-  <a href="/Kanji_Garden/colecciones/jlpt-n3/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N3 (${colecciones["jlpt-n3"].length})</a>
-  <a href="/Kanji_Garden/colecciones/jlpt-n2/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N2 (${colecciones["jlpt-n2"].length})</a>
-  <a href="/Kanji_Garden/colecciones/jlpt-n1/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N1 (${colecciones["jlpt-n1"].length})</a>
+  <a href="./colecciones/jlpt-n5/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N5 (${colecciones["jlpt-n5"].length})</a>
+  <a href="./colecciones/jlpt-n4/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N4 (${colecciones["jlpt-n4"].length})</a>
+  <a href="./colecciones/jlpt-n3/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N3 (${colecciones["jlpt-n3"].length})</a>
+  <a href="./colecciones/jlpt-n2/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N2 (${colecciones["jlpt-n2"].length})</a>
+  <a href="./colecciones/jlpt-n1/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N1 (${colecciones["jlpt-n1"].length})</a>
 </div>
 
 ### Taxonomía de caracteres
 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 1rem 0;">
-  <a href="/Kanji_Garden/colecciones/joyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Jōyō (${colecciones.joyo.length})</a>
-  <a href="/Kanji_Garden/colecciones/jinmeiyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Jinmeiyō (${colecciones.jinmeiyo.length})</a>
-  <a href="/Kanji_Garden/colecciones/kyuujitai/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Kyūjitai (${colecciones.kyuujitai.length})</a>
-  <a href="/Kanji_Garden/colecciones/hyougaiji/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Hyōgaiji (${colecciones.hyougaiji.length})</a>
+  <a href="./colecciones/joyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Jōyō (${colecciones.joyo.length})</a>
+  <a href="./colecciones/jinmeiyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Jinmeiyō (${colecciones.jinmeiyo.length})</a>
+  <a href="./colecciones/kyuujitai/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Kyūjitai (${colecciones.kyuujitai.length})</a>
+  <a href="./colecciones/hyougaiji/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Hyōgaiji (${colecciones.hyougaiji.length})</a>
 </div>
 
 <div class="seccion-oculta-grafo">
