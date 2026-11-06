@@ -380,6 +380,7 @@ function seccionImagenes(caracter) {
   return md;
 }
 
+// Generador de catálogos con enlaces limpios y sección oculta para el grafo
 function generarCatalogoPaginado({
   directorioDestino,
   rutaBase,
@@ -406,7 +407,7 @@ function generarCatalogoPaginado({
       .map((it) => {
         const id = it.kanji || it.comp || it.palabra;
         const sub = it.kanji ? "kanji" : it.comp ? "componentes" : "vocab";
-        return `[[${sub}/${nombreSeguro(id)}|${id}]]`;
+        return `[[/${sub}/${nombreSeguro(id)}|${id}]]`;
       })
       .join(" ");
 
@@ -559,7 +560,7 @@ ${seccionImagenes(kanji)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
-  // Catálogo Kanji
+  // Catálogo Kanji (tarjetas centradas únicamente con el glifo)
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "kanji"),
     rutaBase: "/kanji",
@@ -567,7 +568,7 @@ ${seccionImagenes(kanji)}`;
     items: listaKanjisCatalogo,
     tipoGrid: "grid-catalogo-kanjis",
     renderItemMarkdown: (it) =>
-      `<a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
+      `<a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div></a>`,
     filtrosHtml: renderFiltrosCatalogo(true),
   });
 
@@ -597,7 +598,7 @@ ${seccionImagenes(comp)}`;
     items: catalogoComponentes,
     tipoGrid: "grid-catalogo-kanjis",
     renderItemMarkdown: (it) =>
-      `<a href="/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item"><div class="glifo-item-kanji">${it.comp}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
+      `<a href="/componentes/${nombreSeguro(it.comp)}" class="card-catalogo-item"><div class="glifo-item-kanji">${it.comp}</div></a>`,
   });
 
   // 3. Vocabulario
@@ -726,7 +727,7 @@ ${bloqueTraducciones}
       items: listado,
       tipoGrid: "grid-catalogo-kanjis",
       renderItemMarkdown: (it) =>
-        `<a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
+        `<a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div></a>`,
     });
   }
 
