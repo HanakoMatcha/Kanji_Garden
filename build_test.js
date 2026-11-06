@@ -4,7 +4,6 @@ import { parse } from "csv-parse/sync";
 
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
-const MI_BASE_URL = "HanakoMatcha.github.io/Kanji_Garden";
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
 const SIN_JLPT = "Sin nivel JLPT";
@@ -211,106 +210,19 @@ function renderFiltrosCatalogo(incluirTaxonomia = true) {
 `;
 }
 
+// Contenedor semántico puro: el script global se encargará de HanziWriter
 function seccionPracticadorKanji(caracter) {
-  const containerId = `kanji-quiz-${caracter.codePointAt(0)}`;
   return `
 ## Práctica de trazo
-<div class="kanji-quiz-container" style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 1.5rem 0; padding: 1.2rem; background: rgba(0,0,0,0.03); border: 1px solid var(--lightgray); border-radius: 8px;">
-  <div id="${containerId}" style="border: 2px solid var(--gray); border-radius: 8px; box-shadow: inset 0 0 10px rgba(0,0,0,0.04); position: relative; width: 180px; height: 180px;"></div>
+<div class="kanji-quiz-container" data-kanji="${caracter}" style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 1.5rem 0; padding: 1.2rem; background: rgba(0,0,0,0.03); border: 1px solid var(--lightgray); border-radius: 8px;">
+  <div class="kanji-writer-target" style="border: 2px solid var(--gray); border-radius: 8px; box-shadow: inset 0 0 10px rgba(0,0,0,0.04); position: relative; width: 180px; height: 180px;"></div>
 
   <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
-    <button type="button" id="btn-quiz-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--secondary); background: var(--secondary); color: var(--light); cursor: pointer; font-size: 0.85rem; font-weight: bold;">Trazar</button>
-    <button type="button" id="btn-anim-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--gray); background: transparent; color: var(--dark); cursor: pointer; font-size: 0.85rem;">Ver orden</button>
-    <button type="button" id="btn-reset-${containerId}" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--gray); background: transparent; color: var(--dark); cursor: pointer; font-size: 0.85rem;">Limpiar</button>
+    <button type="button" class="btn-quiz-start" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--secondary); background: var(--secondary); color: var(--light); cursor: pointer; font-size: 0.85rem; font-weight: bold;">Trazar</button>
+    <button type="button" class="btn-quiz-animate" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--gray); background: transparent; color: var(--dark); cursor: pointer; font-size: 0.85rem;">Ver orden</button>
+    <button type="button" class="btn-quiz-reset" style="padding: 6px 14px; border-radius: 4px; border: 1px solid var(--gray); background: transparent; color: var(--dark); cursor: pointer; font-size: 0.85rem;">Limpiar</button>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
-<script>
-  (function() {
-    let writerInstance = null;
-    function getThemePalette() {
-      const isDark = document.documentElement.getAttribute('saved-theme') === 'dark' ||
-                     document.documentElement.getAttribute('theme') === 'dark' ||
-                     document.body.classList.contains('dark') ||
-                     document.documentElement.classList.contains('dark');
-      if (isDark) {
-        return {
-          background: '#231634',
-          strokeColor: '#f5f0fb',
-          outlineColor: '#4d3b63',
-          drawingColor: '#ff4fd8',
-          radicalColor: '#5dff9a'
-        };
-      } else {
-        return {
-          background: '#ffffff',
-          strokeColor: '#3e2a1e',
-          outlineColor: '#bfae93',
-          drawingColor: '#d64d7c',
-          radicalColor: '#6a8f58'
-        };
-      }
-    }
-    function initWriter() {
-      if (typeof HanziWriter === 'undefined') {
-        setTimeout(initWriter, 50);
-        return;
-      }
-      const el = document.getElementById('${containerId}');
-      if (!el) return;
-      el.innerHTML = '';
-      const p = getThemePalette();
-      el.style.backgroundColor = p.background;
-      writerInstance = HanziWriter.create('${containerId}', '${caracter}', {
-        width: 180,
-        height: 180,
-        padding: 12,
-        showOutline: true,
-        strokeAnimationSpeed: 1.2,
-        delayBetweenStrokes: 120,
-        strokeColor: p.strokeColor,
-        outlineColor: p.outlineColor,
-        drawingColor: p.drawingColor,
-        radicalColor: p.radicalColor,
-        highlightColor: p.drawingColor,
-        showCharacter: true
-      });
-      const btnQuiz = document.getElementById('btn-quiz-${containerId}');
-      const btnAnim = document.getElementById('btn-anim-${containerId}');
-      const btnReset = document.getElementById('btn-reset-${containerId}');
-      if (btnQuiz && !btnQuiz.dataset.bound) {
-        btnQuiz.dataset.bound = "true";
-        btnQuiz.addEventListener('click', () => {
-          if (!writerInstance) return;
-          writerInstance.quiz({ showOutline: true, showHintAfterMisses: 1 });
-        });
-      }
-      if (btnAnim && !btnAnim.dataset.bound) {
-        btnAnim.dataset.bound = "true";
-        btnAnim.addEventListener('click', () => {
-          if (writerInstance) writerInstance.animateCharacter();
-        });
-      }
-      if (btnReset && !btnReset.dataset.bound) {
-        btnReset.dataset.bound = "true";
-        btnReset.addEventListener('click', () => {
-          if (!writerInstance) return;
-          writerInstance.cancelQuiz();
-          writerInstance.showCharacter();
-          writerInstance.showOutline();
-        });
-      }
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initWriter);
-    } else {
-      initWriter();
-    }
-    document.addEventListener('nav', initWriter);
-    const themeObserver = new MutationObserver(() => initWriter());
-    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['saved-theme', 'theme', 'class'] });
-  })();
-</script>
 `;
 }
 
@@ -380,7 +292,6 @@ function seccionImagenes(caracter) {
   return md;
 }
 
-// Generador de catálogos con enlaces limpios y sección oculta para el grafo
 function generarCatalogoPaginado({
   directorioDestino,
   rutaBase,
@@ -403,11 +314,11 @@ function generarCatalogoPaginado({
 
     const itemsMarkdown = lote.map((it) => renderItemMarkdown(it)).join("\n");
 
+    // Wikilinks sin prefijo de carpeta: Quartz los resuelve en todo el vault directamente
     const enlacesOcultosGrafo = lote
       .map((it) => {
         const id = it.kanji || it.comp || it.palabra;
-        const sub = it.kanji ? "kanji" : it.comp ? "componentes" : "vocab";
-        return `[[/${sub}/${nombreSeguro(id)}|${id}]]`;
+        return `[[${nombreSeguro(id)}|${id}]]`;
       })
       .join(" ");
 
@@ -560,7 +471,7 @@ ${seccionImagenes(kanji)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
-  // Catálogo Kanji (tarjetas centradas únicamente con el glifo)
+  // Catálogo Kanji
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "kanji"),
     rutaBase: "/kanji",
