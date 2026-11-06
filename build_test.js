@@ -314,11 +314,14 @@ function generarCatalogoPaginado({
 
     const itemsMarkdown = lote.map((it) => renderItemMarkdown(it)).join("\n");
 
-    // Wikilinks sin prefijo de carpeta: Quartz los resuelve en todo el vault directamente
+    // Wikilinks CON carpeta (sin "/" inicial, igual que los enlaces a componentes de las
+    // fichas). Sin carpeta, Quartz ("shortest") no puede resolver nombres que existen en
+    // varias carpetas (日 está en kanji/, componentes/ y vocab/) y el nodo desaparece del grafo.
     const enlacesOcultosGrafo = lote
       .map((it) => {
         const id = it.kanji || it.comp || it.palabra;
-        return `[[${nombreSeguro(id)}|${id}]]`;
+        const sub = it.kanji ? "kanji" : it.comp ? "componentes" : "vocab";
+        return `[[${sub}/${nombreSeguro(id)}|${id}]]`;
       })
       .join(" ");
 
