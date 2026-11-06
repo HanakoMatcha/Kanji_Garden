@@ -646,6 +646,21 @@ jobs:
               for (const slug in data) {
                 delete data[slug].content;
               }
+              // El plugin del graph toma el slug de la URL sin la "/" final: en
+              // /kanji/ busca "kanji", pero el índice guarda "kanji/index" (que él
+              // simplifica a "kanji/"). No lo encuentra y la página 1 de cada
+              // catálogo queda sin sus nodos. Se añade una entrada gemela "kanji"
+              // con los mismos enlaces, sin título ni etiquetas para que el
+              // buscador no la muestre repetida.
+              let gemelas = 0;
+              for (const slug of Object.keys(data)) {
+                if (!slug.endsWith("/index")) continue;
+                const carpeta = slug.slice(0, -"/index".length);
+                if (!carpeta || data[carpeta]) continue;
+                data[carpeta] = { slug: carpeta, filePath: data[slug].filePath, title: "", links: data[slug].links || [], tags: [] };
+                gemelas++;
+              }
+              console.log("Entradas gemelas para el graph de carpetas: " + gemelas);
               fs.writeFileSync(p, JSON.stringify(data));
               const tam = (fs.statSync(p).size / (1024 * 1024)).toFixed(2);
               console.log("Nuevo tamano optimizado: " + tam + " MB");
