@@ -24,6 +24,14 @@ body[data-slug="index"] .content-meta {
   display: none !important;
 }
 
+/* Ocultar ArticleTitle duplicado en catálogos y colecciones */
+body[data-slug^="kanji"] .article-title,
+body[data-slug^="vocab"] .article-title,
+body[data-slug^="componentes"] .article-title,
+body[data-slug^="colecciones"] .article-title {
+  display: none !important;
+}
+
 /* Ocultar sección técnica que alimenta el grafo y backlinks */
 .seccion-oculta-grafo {
   display: none !important;
