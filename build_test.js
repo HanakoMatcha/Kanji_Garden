@@ -101,9 +101,13 @@ function limpiarEtimologiaWiktionary(raw) {
   return texto || "Sin datos registrados.";
 }
 
-function renderBarraPaginacion(numPagina, totalPaginas) {
-  const anteriorHref = numPagina === 1 ? "" : (numPagina === 2 ? "./" : `pagina-${numPagina - 1}`);
-  const siguienteHref = numPagina < totalPaginas ? `pagina-${numPagina + 1}` : "";
+function renderBarraPaginacion(numPagina, totalPaginas, rutaBase) {
+  const anteriorHref = numPagina === 1
+    ? ""
+    : (numPagina === 2 ? `${rutaBase}/` : `${rutaBase}/pagina-${numPagina - 1}`);
+  const siguienteHref = numPagina < totalPaginas
+    ? `${rutaBase}/pagina-${numPagina + 1}`
+    : "";
 
   const enlaceAnterior = numPagina === 1
     ? `<span class="btn-nav-desactivado">← Anterior</span>`
@@ -115,25 +119,16 @@ function renderBarraPaginacion(numPagina, totalPaginas) {
 
   let opciones = "";
   for (let p = 1; p <= totalPaginas; p++) {
-    const slugDestino = p === 1 ? "" : `pagina-${p}`;
+    const valorOpcion = p === 1 ? `${rutaBase}/` : `${rutaBase}/pagina-${p}`;
     const selected = p === numPagina ? "selected" : "";
-    opciones += `<option value="${slugDestino}" ${selected}>Página ${p} de ${totalPaginas}</option>`;
+    opciones += `<option value="${valorOpcion}" ${selected}>Página ${p} de ${totalPaginas}</option>`;
   }
 
   return `
 <div class="barra-paginacion-catalogo">
   <div style="min-width: 100px; text-align: left;">${enlaceAnterior}</div>
   <div class="selector-pagina-wrapper">
-    <select class="selector-pagina-dropdown" onchange="
-      const url = new URL(window.location.href);
-      let pathSegments = url.pathname.split('/').filter(Boolean);
-      if (pathSegments.length > 0 && pathSegments[pathSegments.length - 1].startsWith('pagina-')) {
-        pathSegments.pop();
-      }
-      const destino = this.value;
-      const nuevoPath = '/' + pathSegments.join('/') + (destino ? '/' + destino : '/');
-      window.location.href = nuevoPath;
-    ">
+    <select class="selector-pagina-dropdown" onchange="const b = window.location.pathname.startsWith('/Kanji_Garden') ? '/Kanji_Garden' : ''; window.location.href = b + this.value;">
       ${opciones}
     </select>
   </div>
@@ -385,9 +380,9 @@ function seccionImagenes(caracter) {
   return md;
 }
 
-// Generador de catálogos con enlaces limpios y sección oculta para el grafo
 function generarCatalogoPaginado({
   directorioDestino,
+  rutaBase,
   tituloCatalogo,
   items,
   porPagina = 50,
@@ -403,7 +398,7 @@ function generarCatalogoPaginado({
     const numPagina = i + 1;
     const inicio = i * porPagina;
     const lote = items.slice(inicio, inicio + porPagina);
-    const navBar = renderBarraPaginacion(numPagina, totalPaginas);
+    const navBar = renderBarraPaginacion(numPagina, totalPaginas, rutaBase);
 
     const itemsMarkdown = lote.map((it) => renderItemMarkdown(it)).join("\n");
 
@@ -567,6 +562,7 @@ ${seccionImagenes(kanji)}`;
   // Catálogo Kanji
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "kanji"),
+    rutaBase: "/kanji",
     tituloCatalogo: "Catálogo de Kanjis",
     items: listaKanjisCatalogo,
     tipoGrid: "grid-catalogo-kanjis",
@@ -596,6 +592,7 @@ ${seccionImagenes(comp)}`;
 
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "componentes"),
+    rutaBase: "/componentes",
     tituloCatalogo: "Catálogo de Radicales y Componentes",
     items: catalogoComponentes,
     tipoGrid: "grid-catalogo-kanjis",
@@ -685,6 +682,7 @@ ${bloqueTraducciones}
 
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "vocab"),
+    rutaBase: "/vocab",
     tituloCatalogo: "Catálogo de Vocabulario",
     items: listaVocabCatalogo,
     tipoGrid: "grid-catalogo-vocab",
@@ -723,6 +721,7 @@ ${bloqueTraducciones}
     if (listado.length === 0) continue;
     generarCatalogoPaginado({
       directorioDestino: path.join(CONTENT_DIR, "colecciones", clave),
+      rutaBase: `/colecciones/${clave}`,
       tituloCatalogo: titulosColecciones[clave] || `Colección: ${clave}`,
       items: listado,
       tipoGrid: "grid-catalogo-kanjis",
