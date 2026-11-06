@@ -43,7 +43,7 @@ jobs:
               curl -fsSL --retry 3 "$u" | sha256sum
             done | sha256sum | cut -d' ' -f1) || huella="error-${{ github.run_id }}"
           fi
-          codigo="${{ hashFiles('build_test.js', '.github/workflows/deploy.yml', 'quartz.layout.ts', 'quartz.config.ts') }}"
+          codigo="${{ hashFiles('build_test.js', 'practicador.js', '.github/workflows/deploy.yml', 'quartz.layout.ts', 'quartz.config.ts') }}"
           echo "clave=publicado-codigo-${codigo}-hojas-${huella}" >> "$GITHUB_OUTPUT"
 
       - name: Buscar marca de publicación previa
@@ -634,6 +634,32 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx quartz build 2>&1 | grep -v "isn't yet tracked by git"
+
+      - name: Inyectar practicador en el head de todas las páginas
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const js = fs.readFileSync("practicador.js", "utf8");
+            const etiqueta =
+              "<script data-persist defer src=\"https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js\"></script>" +
+              "<script data-persist>" + js + "</script>";
+            let n = 0;
+            (function recorrer(dir) {
+              for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+                const p = path.join(dir, e.name);
+                if (e.isDirectory()) recorrer(p);
+                else if (e.name.endsWith(".html")) {
+                  const html = fs.readFileSync(p, "utf8");
+                  if (!html.includes("</head>") || html.includes("__kanjiPracticador")) continue;
+                  fs.writeFileSync(p, html.replace("</head>", etiqueta + "</head>"));
+                  n++;
+                }
+              }
+            })("public");
+            console.log("Practicador inyectado en " + n + " páginas");
+            if (n === 0) process.exit(1);
+          '
 
       - name: Optimizar tamano de contentIndex.json
         run: |
