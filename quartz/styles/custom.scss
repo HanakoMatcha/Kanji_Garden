@@ -25,10 +25,15 @@ body[data-slug="index"] .content-meta {
 }
 
 /* Ocultar ArticleTitle duplicado en catálogos y colecciones */
-body[data-slug^="kanji"] .article-title,
-body[data-slug^="vocab"] .article-title,
-body[data-slug^="componentes"] .article-title,
-body[data-slug^="colecciones"] .article-title {
+body[data-slug*="kanji"] .article-title,
+body[data-slug*="vocab"] .article-title,
+body[data-slug*="componentes"] .article-title,
+body[data-slug*="colecciones"] .article-title {
+  display: none !important;
+}
+
+/* Ocultar texto de significado debajo del kanji y componente */
+.significado-item-kanji {
   display: none !important;
 }
 
@@ -58,6 +63,14 @@ body[data-slug^="colecciones"] .article-title {
   .grid-catalogo-kanjis {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+/* Tarjeta centrada únicamente en el glifo */
+.card-catalogo-item {
+  min-height: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 /* Supresión de duplicación de listados automáticos en colecciones */
