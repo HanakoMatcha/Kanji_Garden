@@ -175,6 +175,119 @@ jobs:
             setc "$D" textHighlight '"#5dff9a55"'
           fi
 
+      - name: Inyectar inicializador global de HanziWriter
+        run: |
+          mkdir -p quartz/static
+          cat << 'EOF' > quartz/static/kanji-writer-init.js
+          (function() {
+            function loadHanziWriter(cb) {
+              if (window.HanziWriter) return cb();
+              if (document.getElementById('hanzi-writer-cdn')) {
+                const check = setInterval(() => {
+                  if (window.HanziWriter) { clearInterval(check); cb(); }
+                }, 50);
+                return;
+              }
+              const s = document.createElement('script');
+              s.id = 'hanzi-writer-cdn';
+              s.src = 'https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js';
+              s.onload = cb;
+              document.head.appendChild(s);
+            }
+
+            function getThemePalette() {
+              const isDark = document.documentElement.getAttribute('saved-theme') === 'dark' ||
+                             document.documentElement.getAttribute('theme') === 'dark' ||
+                             document.body.classList.contains('dark') ||
+                             document.documentElement.classList.contains('dark');
+              return isDark ? {
+                background: '#231634',
+                strokeColor: '#f5f0fb',
+                outlineColor: '#4d3b63',
+                drawingColor: '#ff4fd8',
+                radicalColor: '#5dff9a'
+              } : {
+                background: '#ffffff',
+                strokeColor: '#3e2a1e',
+                outlineColor: '#bfae93',
+                drawingColor: '#d64d7c',
+                radicalColor: '#6a8f58'
+              };
+            }
+
+            function initAllKanjiWriters() {
+              const containers = document.querySelectorAll('.kanji-quiz-container');
+              if (!containers.length) return;
+
+              loadHanziWriter(() => {
+                containers.forEach(container => {
+                  if (container.dataset.ready) return;
+                  container.dataset.ready = "true";
+
+                  const kanji = container.getAttribute('data-kanji');
+                  const target = container.querySelector('.kanji-writer-target');
+                  if (!kanji || !target) return;
+
+                  target.innerHTML = '';
+                  const p = getThemePalette();
+                  target.style.backgroundColor = p.background;
+
+                  const writer = HanziWriter.create(target, kanji, {
+                    width: 180,
+                    height: 180,
+                    padding: 12,
+                    showOutline: true,
+                    strokeAnimationSpeed: 1.2,
+                    delayBetweenStrokes: 120,
+                    strokeColor: p.strokeColor,
+                    outlineColor: p.outlineColor,
+                    drawingColor: p.drawingColor,
+                    radicalColor: p.radicalColor,
+                    highlightColor: p.drawingColor,
+                    showCharacter: true
+                  });
+
+                  const btnQuiz = container.querySelector('.btn-quiz-start');
+                  const btnAnim = container.querySelector('.btn-quiz-animate');
+                  const btnReset = container.querySelector('.btn-quiz-reset');
+
+                  if (btnQuiz) {
+                    btnQuiz.onclick = () => writer.quiz({ showOutline: true, showHintAfterMisses: 1 });
+                  }
+                  if (btnAnim) {
+                    btnAnim.onclick = () => writer.animateCharacter();
+                  }
+                  if (btnReset) {
+                    btnReset.onclick = () => {
+                      writer.cancelQuiz();
+                      writer.showCharacter();
+                      writer.showOutline();
+                    };
+                  }
+                });
+              });
+            }
+
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', initAllKanjiWriters);
+            } else {
+              initAllKanjiWriters();
+            }
+            document.addEventListener('nav', () => {
+              setTimeout(initAllKanjiWriters, 60);
+            });
+            const observer = new MutationObserver(() => initAllKanjiWriters());
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['saved-theme', 'theme', 'class'] });
+          })();
+          EOF
+
+          # Enlazar el script en los componentes de maquetado si existe quartz.layout.ts
+          if [ -f "quartz.layout.ts" ]; then
+            if ! grep -q "kanji-writer-init.js" quartz.layout.ts; then
+              sed -i "s|Component.Search(),|Component.Search(), Component.Custom({ html: '<script src=\"/Kanji_Garden/static/kanji-writer-init.js\" defer></script>' }),|" quartz.layout.ts || true
+            fi
+          fi
+
       - name: Graph en carpetas y páginas de etiquetas
         run: |
           f=quartz.config.default.yaml
@@ -235,6 +348,11 @@ jobs:
           body[data-slug*="vocab"] .content-meta,
           body[data-slug*="componentes"] .content-meta,
           body[data-slug*="colecciones"] .content-meta {
+            display: none !important;
+          }
+
+          /* Ocultar texto de significado debajo del kanji y componente */
+          .significado-item-kanji {
             display: none !important;
           }
 
@@ -414,7 +532,7 @@ jobs:
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 110px;
+            min-height: 80px;
             transition: all 0.2s ease;
             text-decoration: none !important;
           }
@@ -432,16 +550,6 @@ jobs:
             color: var(--secondary);
             margin-bottom: 4px;
             line-height: 1.1;
-          }
-
-          .significado-item-kanji {
-            font-size: 0.8rem;
-            color: var(--darkgray);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            width: 100%;
-            padding: 0 4px;
           }
 
           .grid-catalogo-vocab {
