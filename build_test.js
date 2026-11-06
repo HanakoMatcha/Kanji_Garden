@@ -49,7 +49,7 @@ function extraerKanjis(texto) {
 
 function filtrarComponentesValidos(texto) {
   if (!texto) return [];
-  const regex = /[⺀-⿕㐀-䶿一-鿿豈-﫿\u{20000}-\u{2EBEF}]/gu;
+  const regex = /[⺀-⿕㐀-䶿一-鿿豈-﫿\u{20000}-\u{2EBEF}]/gu;
   return Array.from(new Set(texto.match(regex) || []));
 }
 
@@ -712,7 +712,7 @@ ${bloqueTraducciones}
     });
   }
 
-// 5. Portada principal
+  // 5. Portada principal
   const indexMd = `---
 title: "Inicio"
 showDate: false
@@ -758,28 +758,13 @@ Base de datos viva e interconectada a partir de Google Sheets.
   <a href="./colecciones/hyougaiji/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Hyōgaiji (${colecciones.hyougaiji.length})</a>
 </div>
 
-<div class="seccion-oculta-grafo" style="display:none;">
-[[kanji/index|Kanjis]] [[vocab/index|Vocabulario]] [[componentes/index|Componentes]]
-[[colecciones/jlpt-n5/index|N5]] [[colecciones/jlpt-n4/index|N4]] [[colecciones/jlpt-n3/index|N3]] [[colecciones/jlpt-n2/index|N2]] [[colecciones/jlpt-n1/index|N1]]
-[[colecciones/joyo/index|Jōyō]] [[colecciones/jinmeiyo/index|Jinmeiyō]] [[colecciones/kyuujitai/index|Kyūjitai]] [[colecciones/hyougaiji/index|Hyōgaiji]]
+<div class="seccion-oculta-grafo">
+[[kanji/|Kanjis]] [[vocab/|Vocabulario]] [[componentes/|Componentes]]
+[[colecciones/jlpt-n5/|N5]] [[colecciones/jlpt-n4/|N4]] [[colecciones/jlpt-n3/|N3]] [[colecciones/jlpt-n2/|N2]] [[colecciones/jlpt-n1/|N1]]
+[[colecciones/joyo/|Jōyō]] [[colecciones/jinmeiyo/|Jinmeiyō]] [[colecciones/kyuujitai/|Kyūjitai]] [[colecciones/hyougaiji/|Hyōgaiji]]
 </div>
 `;
 
-  <div class="seccion-oculta-grafo">
-  [[kanji/|Kanjis]]
-  [[vocab/|Vocabulario]]
-  [[componentes/|Componentes]]
-  [[colecciones/jlpt-n5/|N5]]
-  [[colecciones/jlpt-n4/|N4]]
-  [[colecciones/jlpt-n3/|N3]]
-  [[colecciones/jlpt-n2/|N2]]
-  [[colecciones/jlpt-n1/|N1]]
-  [[colecciones/joyo/|Jōyō]]
-  [[colecciones/jinmeiyo/|Jinmeiyō]]
-  [[colecciones/kyuujitai/|Kyūjitai]]
-  [[colecciones/hyougaiji/|Hyōgaiji]]
-</div>
-  
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
 
   console.log("Compilación finalizada.");
