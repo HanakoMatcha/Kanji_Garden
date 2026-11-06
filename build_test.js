@@ -102,8 +102,8 @@ function limpiarEtimologiaWiktionary(raw) {
 }
 
 function renderBarraPaginacion(numPagina, totalPaginas) {
-  const anteriorHref = numPagina === 1 ? "" : (numPagina === 2 ? "./" : `./pagina-${numPagina - 1}`);
-  const siguienteHref = numPagina < totalPaginas ? `./pagina-${numPagina + 1}` : "";
+  const anteriorHref = numPagina === 1 ? "" : (numPagina === 2 ? "./" : `pagina-${numPagina - 1}`);
+  const siguienteHref = numPagina < totalPaginas ? `pagina-${numPagina + 1}` : "";
 
   const enlaceAnterior = numPagina === 1
     ? `<span class="btn-nav-desactivado">← Anterior</span>`
@@ -126,12 +126,13 @@ function renderBarraPaginacion(numPagina, totalPaginas) {
   <div class="selector-pagina-wrapper">
     <select class="selector-pagina-dropdown" onchange="
       const url = new URL(window.location.href);
-      const parts = url.pathname.split('/').filter(Boolean);
-      if (parts.length > 0 && parts[parts.length - 1].startsWith('pagina-')) {
-        parts.pop();
+      let pathSegments = url.pathname.split('/').filter(Boolean);
+      if (pathSegments.length > 0 && pathSegments[pathSegments.length - 1].startsWith('pagina-')) {
+        pathSegments.pop();
       }
-      url.pathname = '/' + parts.join('/') + '/' + this.value;
-      window.location.href = url.toString();
+      const destino = this.value;
+      const nuevoPath = '/' + pathSegments.join('/') + (destino ? '/' + destino : '/');
+      window.location.href = nuevoPath;
     ">
       ${opciones}
     </select>
@@ -384,7 +385,7 @@ function seccionImagenes(caracter) {
   return md;
 }
 
-// Generador de catálogos con Wikilinks nativos para indexación perfecta de grafos
+// Generador de catálogos con enlaces HTML limpios y sección oculta para el grafo
 function generarCatalogoPaginado({
   directorioDestino,
   tituloCatalogo,
@@ -406,6 +407,12 @@ function generarCatalogoPaginado({
     
     const itemsMarkdown = lote.map(it => renderItemMarkdown(it)).join("\n");
 
+    const enlacesOcultosGrafo = lote.map(it => {
+      const id = it.kanji || it.comp || it.palabra;
+      const sub = it.kanji ? "kanji" : (it.comp ? "componentes" : "vocab");
+      return `[[${sub}/${nombreSeguro(id)}|${id}]]`;
+    }).join(" ");
+
     const contenidoIndice = `---
 title: "${tituloCatalogo} (Pág. ${numPagina})"
 showDate: false
@@ -423,6 +430,10 @@ ${itemsMarkdown}
 </div>
 
 ${navBar}
+
+<div class="seccion-oculta-grafo">
+${enlacesOcultosGrafo}
+</div>
 `;
     const nombreArchivo = numPagina === 1 ? "index.md" : `pagina-${numPagina}.md`;
     escribirSiCambio(path.join(directorioDestino, nombreArchivo), contenidoIndice);
@@ -554,7 +565,7 @@ ${seccionImagenes(kanji)}`;
     tituloCatalogo: "Catálogo de Kanjis",
     items: listaKanjisCatalogo,
     tipoGrid: "grid-catalogo-kanjis",
-    renderItemMarkdown: (it) => `[[kanji/${nombreSeguro(it.kanji)}|<div class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></div>]]`,
+    renderItemMarkdown: (it) => `<a href="./${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
     filtrosHtml: renderFiltrosCatalogo(true),
   });
 
@@ -582,7 +593,7 @@ ${seccionImagenes(comp)}`;
     tituloCatalogo: "Catálogo de Radicales y Componentes",
     items: catalogoComponentes,
     tipoGrid: "grid-catalogo-kanjis",
-    renderItemMarkdown: (it) => `[[componentes/${nombreSeguro(it.comp)}|<div class="card-catalogo-item"><div class="glifo-item-kanji">${it.comp}</div><div class="significado-item-kanji">${it.significado || "—"}</div></div>]]`,
+    renderItemMarkdown: (it) => `<a href="./${nombreSeguro(it.comp)}" class="card-catalogo-item"><div class="glifo-item-kanji">${it.comp}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
   });
 
   // 3. Vocabulario
@@ -682,7 +693,7 @@ ${bloqueTraducciones}
       const glosa = partesIdiomas.length > 0
         ? `<div class="glosa-multilingue">${partesIdiomas.join(" · ")}</div>`
         : "";
-      return `[[vocab/${nombreSeguro(it.palabra)}|<div class="card-catalogo-vocab" data-tags="${it.tags}"><div class="cabecera-card-vocab"><span class="palabra-card-vocab">${it.palabra}</span><span class="kana-card-vocab">${it.kana || ""}</span></div><div class="traduccion-es-card">${it.es || it.en || "—"}</div>${glosa}</div>]]`;
+      return `<a href="./${nombreSeguro(it.palabra)}" class="card-catalogo-vocab" data-tags="${it.tags}"><div class="cabecera-card-vocab"><span class="palabra-card-vocab">${it.palabra}</span><span class="kana-card-vocab">${it.kana || ""}</span></div><div class="traduccion-es-card">${it.es || it.en || "—"}</div>${glosa}</a>`;
     },
     filtrosHtml: renderFiltrosCatalogo(false),
   });
@@ -708,7 +719,7 @@ ${bloqueTraducciones}
       tituloCatalogo: titulosColecciones[clave] || `Colección: ${clave}`,
       items: listado,
       tipoGrid: "grid-catalogo-kanjis",
-      renderItemMarkdown: (it) => `[[kanji/${nombreSeguro(it.kanji)}|<div class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></div>]]`,
+      renderItemMarkdown: (it) => `<a href="../../kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div><div class="significado-item-kanji">${it.significado || "—"}</div></a>`,
     });
   }
 
