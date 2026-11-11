@@ -16,8 +16,12 @@
   }
 
   function crearCaja() {
-    var caja = document.createElement("div");
+    var caja = document.createElement("a");
     caja.id = "kg-visitas";
+    caja.href = GC + "/";
+    caja.target = "_blank";
+    caja.rel = "noopener";
+    caja.title = "Ver estadísticas (países, páginas, navegadores…)";
     caja.innerHTML =
       '<span class="kg-visitas-etiqueta">Visitas</span>' +
       '<span class="kg-visitas-num">…</span>';
@@ -57,7 +61,9 @@
   css.textContent =
     "#kg-visitas{display:flex;align-items:center;justify-content:space-between;gap:8px;" +
     "margin-top:.6rem;padding:6px 12px;border:1px solid var(--lightgray);border-radius:8px;" +
-    "background:rgba(255,255,255,.02);font-size:.8rem;max-width:186px;box-sizing:border-box}" +
+    "background:rgba(255,255,255,.02);font-size:.8rem;max-width:186px;box-sizing:border-box;" +
+    "text-decoration:none!important;transition:border-color .2s,box-shadow .2s}" +
+    "#kg-visitas:hover{border-color:var(--secondary);box-shadow:0 0 8px rgba(93,255,154,.3)}" +
     "#kg-visitas .kg-visitas-etiqueta{color:var(--gray);text-transform:uppercase;letter-spacing:1px;font-weight:600;font-size:.7rem}" +
     "#kg-visitas .kg-visitas-num{color:var(--secondary);font-weight:700;font-variant-numeric:tabular-nums}" +
     "@media (max-width:800px){#kg-visitas{display:none}}";
