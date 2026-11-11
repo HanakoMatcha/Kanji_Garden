@@ -194,7 +194,7 @@ jobs:
         run: |
           f=quartz.config.default.yaml
           if [ -f "$f" ]; then
-            sed -i '/source: "@quartz-community\/graph"/,/^[[:space:]]*- source/ s|^[[:space:]]*enabled: true$|    enabled: true\n    options:\n      localGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.1\n        repelForce: 0.6\n        centerForce: 0.3\n        linkDistance: 45\n        fontSize: 0.6\n        opacityScale: 1\n        removeTags: ["kanji", "vocabulario", "radical"]\n        showTags: true\n      globalGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.0\n        repelForce: 0.5\n        centerForce: 0.4\n        linkDistance: 50\n        fontSize: 0.5\n        opacityScale: 0.9\n        removeTags: ["kanji", "vocabulario", "radical"]\n        showTags: true|' "$f"
+            sed -i '/source: "@quartz-community\/graph"/,/^[[:space:]]*- source/ s|^[[:space:]]*enabled: true$|    enabled: true\n    options:\n      localGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.1\n        repelForce: 0.6\n        centerForce: 0.3\n        linkDistance: 45\n        fontSize: 0.6\n        opacityScale: 1\n        removeTags: ["kanji", "vocabulario", "radical", "gramatica"]\n        showTags: true\n      globalGraph:\n        drag: true\n        zoom: true\n        depth: 1\n        scale: 1.0\n        repelForce: 0.5\n        centerForce: 0.4\n        linkDistance: 50\n        fontSize: 0.5\n        opacityScale: 0.9\n        removeTags: ["kanji", "vocabulario", "radical", "gramatica"]\n        showTags: true|' "$f"
           fi
 
       - name: Cambiar favicon
@@ -222,7 +222,9 @@ jobs:
           body[data-slug*="componentes"] .page-listing,
           body[data-slug*="componentes"] .page-listing + ul,
           body[data-slug*="colecciones"] .page-listing,
-          body[data-slug*="colecciones"] .page-listing + ul {
+          body[data-slug*="colecciones"] .page-listing + ul,
+          body[data-slug*="gramatica"] .page-listing,
+          body[data-slug*="gramatica"] .page-listing + ul {
             display: none !important;
           }
 
@@ -231,10 +233,12 @@ jobs:
           body[data-slug*="vocab"] .article-title,
           body[data-slug*="componentes"] .article-title,
           body[data-slug*="colecciones"] .article-title,
+          body[data-slug*="gramatica"] .article-title,
           body[data-slug*="kanji"] .content-meta,
           body[data-slug*="vocab"] .content-meta,
           body[data-slug*="componentes"] .content-meta,
-          body[data-slug*="colecciones"] .content-meta {
+          body[data-slug*="colecciones"] .content-meta,
+          body[data-slug*="gramatica"] .content-meta {
             display: none !important;
           }
 
@@ -496,6 +500,67 @@ jobs:
             margin-top: 4px;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             padding-top: 6px;
+          }
+
+          /* =========================================================
+             GRAMÁTICA: TARJETAS DE CATÁLOGO Y EJEMPLOS
+             ========================================================= */
+          .card-catalogo-gramatica {
+            border: 1px solid var(--lightgray);
+            padding: 16px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: all 0.2s ease;
+            text-decoration: none !important;
+          }
+
+          .card-catalogo-gramatica:hover {
+            border-color: var(--secondary);
+            background: rgba(93, 255, 154, 0.05);
+            transform: translateY(-2px);
+            box-shadow: 0 0 12px rgba(93, 255, 154, 0.25);
+          }
+
+          .punto-card-gramatica {
+            font-size: 1.35rem;
+            font-weight: bold;
+            color: var(--secondary);
+            overflow-wrap: anywhere;
+          }
+
+          .card-catalogo-gramatica .cabecera-card-vocab {
+            gap: 10px;
+            flex-wrap: wrap;
+          }
+
+          .ejemplos-gramatica {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 1rem 0;
+          }
+
+          .ejemplo-gramatica {
+            border-left: 3px solid var(--tertiary);
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 0 8px 8px 0;
+          }
+
+          .ejemplo-ja {
+            font-size: 1.15rem;
+            color: var(--dark);
+            line-height: 1.6;
+          }
+
+          .ejemplo-tr {
+            font-size: 0.9rem;
+            color: var(--darkgray);
+            opacity: 0.85;
+            margin-top: 2px;
           }
 
           /* =========================================================

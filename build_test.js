@@ -4,6 +4,7 @@ import { parse } from "csv-parse/sync";
 
 const URL_VOCAB = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=0&single=true&output=csv";
 const URL_KANJI = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPaoyAEqHNS1o3bsskqc1jwBABpBXGqvxP5c1hA4zBtpgQbWv7dd0pLZqrmo72MtB8H--ppoiYYhDD/pub?gid=2092672219&single=true&output=csv";
+const URL_GRAMATICA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQOWZ3YGAYOMWOzphDzwDscyI032508NemgrNRv_T09EVWIgo4KIcVPX85ALjFcV_SVoXYwuep9qFz0/pub?output=csv";
 const ASSETS_REPO = "HanakoMatcha/kanjium-assets";
 const ASSETS_CDN = `https://cdn.jsdelivr.net/gh/${ASSETS_REPO}@main`;
 const SIN_JLPT = "Sin nivel JLPT";
@@ -16,10 +17,23 @@ const ETIQUETAS_IMG = {
   kso_images: "KSO",
 };
 
+const TIPOS_GRAMATICA_ES = {
+  Adverb: "Adverbio",
+  "Compound Particle": "Partícula compuesta",
+  "Noun / Nominalizer": "Sustantivo / Nominalizador",
+  "Suffix / Prefix": "Sufijo / Prefijo",
+  Keigo: "Keigo (敬語)",
+  Expression: "Expresión",
+  "Verb Form": "Forma verbal",
+  Conjunction: "Conjunción",
+  Particle: "Partícula",
+  "Auxiliary Verb": "Verbo auxiliar",
+};
+
 const ORDEN_IMG = ["origin", "tensho", "gyosho", "sousho", "kso_images"];
 const CONTENT_DIR = "./content";
 
-["vocab", "kanji", "componentes", "colecciones"].forEach((dir) => {
+["vocab", "kanji", "componentes", "colecciones", "gramatica"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
@@ -76,6 +90,40 @@ function getValor(row, posiblesNombres) {
     }
   }
   return "";
+}
+
+function escaparHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// Restos del scraping de la hoja: "飽 く" (furigana eliminado), "end ." o "( to the end )".
+function limpiarTextoGramatica(s) {
+  return String(s ?? "")
+    .replace(/([一-龯々㐀-䶿])[ \t]+(?=[\u3040-\u309f])/gu, "$1")
+    .replace(/[ \t]+([.,!?;:)])/g, "$1")
+    .replace(/\([ \t]+/g, "(")
+    .replace(/[ \t]{2,}/g, " ");
+}
+
+// Texto de la hoja -> Markdown seguro: evita que ~ (tachado GFM), $ (LaTeX), * _ [ ] ` |
+// o etiquetas HTML sueltas se interpreten como formato.
+function escaparMd(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/([\\`*_\[\]~$|#])/g, "\\$1");
+}
+
+function slugSimple(s) {
+  return String(s)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function esVerdadero(val) {
@@ -135,7 +183,19 @@ function renderBarraPaginacion(numPagina, totalPaginas, rutaBase) {
 </div>`;
 }
 
-function renderFiltrosCatalogo(incluirTaxonomia = true) {
+// gruposExtra: [{ etiqueta, opciones: [{ filtro, texto }] }] para chips adicionales (p. ej. tipo gramatical).
+function renderFiltrosCatalogo(incluirTaxonomia = true, gruposExtra = []) {
+  const htmlGruposExtra = gruposExtra
+    .map(
+      (g) => `
+  <div class="grupo-filtro-chips">
+    <span class="etiqueta-filtro-chip">${escaparHtml(g.etiqueta)}:</span>
+    ${g.opciones
+      .map((o) => `<button type="button" class="btn-chip-filtro" data-filtro="${escaparHtml(o.filtro)}">${escaparHtml(o.texto)}</button>`)
+      .join("\n    ")}
+  </div>`
+    )
+    .join("");
   return `
 <div class="contenedor-filtros-catalogo">
   <div class="grupo-filtro-chips">
@@ -158,7 +218,7 @@ function renderFiltrosCatalogo(incluirTaxonomia = true) {
     <button type="button" class="btn-chip-filtro" data-filtro="kyuujitai">Kyūjitai</button>
   </div>`
       : ""
-  }
+  }${htmlGruposExtra}
 </div>
 <script>
   (function() {
@@ -166,7 +226,7 @@ function renderFiltrosCatalogo(incluirTaxonomia = true) {
       const panel = document.querySelector('.contenedor-filtros-catalogo');
       if (!panel || panel.dataset.bound) return;
       panel.dataset.bound = "true";
-      const tarjetas = Array.from(document.querySelectorAll('.card-catalogo-item, .card-catalogo-vocab'));
+      const tarjetas = Array.from(document.querySelectorAll('.card-catalogo-item, .card-catalogo-vocab, .card-catalogo-gramatica'));
       const botones = Array.from(panel.querySelectorAll('.btn-chip-filtro'));
       const btnReset = panel.querySelector('#btn-limpiar-chips');
       let filtrosActivos = new Set();
@@ -319,6 +379,7 @@ function generarCatalogoPaginado({
     // varias carpetas (日 está en kanji/, componentes/ y vocab/) y el nodo desaparece del grafo.
     const enlacesOcultosGrafo = lote
       .map((it) => {
+        if (it.enlaceGrafo) return it.enlaceGrafo;
         const id = it.kanji || it.comp || it.palabra;
         const sub = it.kanji ? "kanji" : it.comp ? "componentes" : "vocab";
         return `[[${sub}/${nombreSeguro(id)}|${id}]]`;
@@ -618,7 +679,196 @@ ${bloqueTraducciones}
     filtrosHtml: renderFiltrosCatalogo(false),
   });
 
-  // 4. Colecciones
+  // 4. Gramática
+  // Un fallo en la hoja de gramática no debe tumbar el resto del jardín.
+  console.log("Descargando y procesando gramática...");
+  const listaGramaticaCatalogo = [];
+  const coleccionesGramatica = {
+    "jlpt-n5": [],
+    "jlpt-n4": [],
+    "jlpt-n3": [],
+    "jlpt-n2": [],
+    "jlpt-n1": [],
+  };
+  const tiposGramaticaVistos = new Map();
+  try {
+    const resGram = await fetch(URL_GRAMATICA);
+    if (!resGram.ok) throw new Error(`HTTP ${resGram.status}`);
+    const gramRecords = parse(await resGram.text(), {
+      columns: true,
+      skip_empty_lines: true,
+      bom: true,
+      trim: true,
+      relax_column_count: true,
+    });
+
+    const kanjisExistentes = new Set(listaKanjisCatalogo.map((it) => it.kanji));
+    const vocabExistente = new Set(listaVocabCatalogo.map((it) => it.palabra));
+    const slugsUsados = new Map();
+
+    gramRecords.forEach((row) => {
+      const puntoRaw = getValor(row, ["Grammar point", "Gramática", "Gramatica", "Punto gramatical"]);
+      const lectura = getValor(row, ["Reading", "Lectura", "かな", "Kana"]);
+      const jlpt = getValor(row, ["JLPT Level", "JLPT", "Nivel"]) || SIN_JLPT;
+      const tipoEn = getValor(row, ["Type", "Tipo"]);
+      const significado = limpiarTextoGramatica(getValor(row, ["Meaning", "Significado"]));
+      const explicacion = limpiarTextoGramatica(getValor(row, ["Explanation", "Explicación", "Explicacion"]));
+      const ejemplosRaw = limpiarTextoGramatica(getValor(row, ["Examples", "Ejemplos"]));
+      if (!puntoRaw && !significado) return;
+
+      // La hoja trae restos de scraping: "ことだし()", "とあって...(", "風に~", o solo "()".
+      const punto = puntoRaw
+        .replace(/[（(][\s\-]*[)）]/g, "")
+        .replace(/[\s.…~〜'（(]+$/u, "")
+        .replace(/^[\s~〜]+/u, "")
+        .trim();
+      // Coma que no esté dentro de un paréntesis: "The 'one' that... (Indefinite pronoun, Adjective…)".
+      const significadoCorto = significado.split(/,(?![^(]*\))/)[0].trim();
+      const nombreVisible = punto || `「${significadoCorto}」`;
+      // La columna Reading a veces contiene una categoría ("Adjective", "Verb[て]") en lugar de kana.
+      const lecturaEsKana = /[぀-ヿ]/u.test(lectura) && !/[A-Za-z]/.test(lectura) && lectura !== punto;
+
+      let base = punto
+        ? nombreSeguro(punto.replace(/[\[\]()（）]/g, ""))
+        : `punto-${slugSimple(significadoCorto).slice(0, 40)}`;
+      // No pisar los índices del catálogo (index.md, pagina-N.md).
+      if (!base || base === "index" || /^pagina-\d+$/.test(base)) base = `punto-${base || "gramatical"}`;
+      const n = (slugsUsados.get(base) || 0) + 1;
+      slugsUsados.set(base, n);
+      const slug = n === 1 ? base : `${base}-${n}`;
+
+      const jlptTag = etiquetaJlpt(jlpt);
+      const tipoTag = tipoEn ? `gtipo-${slugSimple(tipoEn)}` : "";
+      if (tipoEn && !tiposGramaticaVistos.has(tipoTag)) tiposGramaticaVistos.set(tipoTag, tipoEn);
+      const tipoEs = TIPOS_GRAMATICA_ES[tipoEn] || tipoEn;
+
+      const tags = ["gramatica"];
+      if (jlptTag) tags.push(jlptTag);
+      if (tipoTag) tags.push(tipoTag);
+
+      const aliasSeguro = (s) => String(s).replace(/[\[\]|]/g, "");
+      const item = {
+        slug,
+        nombre: nombreVisible,
+        lectura: lecturaEsKana ? lectura : "",
+        significado,
+        jlpt,
+        tipoEs,
+        tags: tags.join(" "),
+        enlaceGrafo: `[[gramatica/${slug}|${aliasSeguro(nombreVisible)}]]`,
+      };
+      listaGramaticaCatalogo.push(item);
+      if (jlptTag && coleccionesGramatica[jlptTag]) coleccionesGramatica[jlptTag].push(item);
+
+      // Conexiones con el resto del jardín (solo a páginas que existen, para no crear nodos fantasma).
+      const kanjis = extraerKanjis(punto).filter((k) => kanjisExistentes.has(k));
+      const kanjiLinks = kanjis.length > 0
+        ? kanjis.map((k) => `[[kanji/${nombreSeguro(k)}|${k}]]`).join(", ")
+        : "—";
+      const vocabRelacionado = [punto, lecturaEsKana ? lectura : ""]
+        .flatMap((s) => s.split(/[・／/]/))
+        .map((s) => s.trim())
+        .filter((s) => s && vocabExistente.has(s));
+      const vocabLinks = Array.from(new Set(vocabRelacionado))
+        .map((v) => `[[vocab/${nombreSeguro(v)}|${aliasSeguro(v)}]]`)
+        .join(", ");
+
+      // Ejemplos: bloques separados por línea en blanco; 1.ª línea japonés, resto traducción.
+      const ejemplos = ejemplosRaw
+        .split(/\n\s*\n/)
+        .map((b) => b.split("\n").map((l) => l.trim()).filter(Boolean))
+        .filter((lineas) => lineas.length > 0)
+        .map((lineas) => {
+          const ja = escaparHtml(lineas[0]);
+          const tr = escaparHtml(lineas.slice(1).join(" "));
+          return `<div class="ejemplo-gramatica"><div class="ejemplo-ja" lang="ja">${ja}</div>${tr ? `<div class="ejemplo-tr">${tr}</div>` : ""}</div>`;
+        });
+
+      const encabezado = item.lectura ? `# ${escaparMd(nombreVisible)} (${escaparMd(item.lectura)})` : `# ${escaparMd(nombreVisible)}`;
+      const md = `---
+title: "${yamlStr(nombreVisible)}"
+tipo: gramatica
+lectura: "${yamlStr(item.lectura)}"
+jlpt: "${yamlStr(jlpt)}"
+categoria: "${yamlStr(tipoEs)}"
+tags:
+${tags.map((t) => `  - ${t}`).join("\n")}
+---
+${encabezado}
+> **${escaparMd(significado) || "—"}**
+
+${[
+  jlpt !== SIN_JLPT ? `**JLPT:** [[colecciones/gramatica-${jlptTag.replace(/^jlpt-/, "")}/|${jlpt}]]` : "",
+  `**Tipo:** ${escaparMd(tipoEs || "—")}${tipoEs && tipoEs !== tipoEn ? ` (${escaparMd(tipoEn)})` : ""}`,
+  !lecturaEsKana && lectura && lectura !== punto ? `**Forma:** ${escaparMd(lectura)}` : "",
+  `**Kanjis:** ${kanjiLinks}`,
+  vocabLinks ? `**Vocabulario:** ${vocabLinks}` : "",
+].filter(Boolean).join("  \n")}
+
+---
+
+## Explicación
+${escaparMd(explicacion) || "Sin datos registrados."}
+${ejemplos.length > 0 ? `
+## Ejemplos
+<div class="ejemplos-gramatica">
+${ejemplos.join("\n")}
+</div>
+` : ""}`;
+      escribirSiCambio(path.join(CONTENT_DIR, "gramatica", `${slug}.md`), md);
+    });
+  } catch (err) {
+    console.warn("No se pudo generar la sección de gramática:", err.message);
+  }
+
+  const renderCardGramatica = (it) =>
+    `<a href="/gramatica/${it.slug}" class="card-catalogo-gramatica" data-tags="${escaparHtml(it.tags)}"><div class="cabecera-card-vocab"><span class="punto-card-gramatica" lang="ja">${escaparHtml(it.nombre)}</span><span class="kana-card-vocab">${escaparHtml(it.lectura)}</span></div><div class="traduccion-es-card">${escaparHtml(it.significado || "—")}</div><div class="glosa-multilingue">${escaparHtml([it.jlpt !== SIN_JLPT ? it.jlpt : "", it.tipoEs].filter(Boolean).join(" · "))}</div></a>`;
+
+  if (listaGramaticaCatalogo.length > 0) {
+    const ordenNiveles = { "jlpt-n5": 0, "jlpt-n4": 1, "jlpt-n3": 2, "jlpt-n2": 3, "jlpt-n1": 4 };
+    const nivelDe = (it) => {
+      const t = it.tags.split(" ").find((x) => x.startsWith("jlpt-"));
+      return t in ordenNiveles ? ordenNiveles[t] : 9;
+    };
+    // Orden pedagógico: N5 → N1, conservando el orden de la hoja dentro de cada nivel.
+    const ordenada = listaGramaticaCatalogo
+      .map((it, i) => ({ it, i }))
+      .sort((a, b) => nivelDe(a.it) - nivelDe(b.it) || a.i - b.i)
+      .map((x) => x.it);
+
+    const chipsTipo = Array.from(tiposGramaticaVistos.entries())
+      .map(([filtro, en]) => ({ filtro, texto: TIPOS_GRAMATICA_ES[en] || en }))
+      .sort((a, b) => a.texto.localeCompare(b.texto, "es"));
+
+    generarCatalogoPaginado({
+      directorioDestino: path.join(CONTENT_DIR, "gramatica"),
+      rutaBase: "/gramatica",
+      tituloCatalogo: "Catálogo de Gramática",
+      items: ordenada,
+      tipoGrid: "grid-catalogo-vocab",
+      renderItemMarkdown: renderCardGramatica,
+      filtrosHtml: renderFiltrosCatalogo(false, [{ etiqueta: "Tipo", opciones: chipsTipo }]),
+    });
+
+    for (const [clave, listado] of Object.entries(coleccionesGramatica)) {
+      if (listado.length === 0) continue;
+      const nivel = clave.replace(/^jlpt-/, "");
+      generarCatalogoPaginado({
+        directorioDestino: path.join(CONTENT_DIR, "colecciones", `gramatica-${nivel}`),
+        rutaBase: `/colecciones/gramatica-${nivel}`,
+        tituloCatalogo: `Gramática JLPT ${nivel.toUpperCase()}`,
+        items: listado,
+        tipoGrid: "grid-catalogo-vocab",
+        renderItemMarkdown: renderCardGramatica,
+        filtrosHtml: renderFiltrosCatalogo(false, [{ etiqueta: "Tipo", opciones: chipsTipo }]).replace(
+          /<div class="grupo-filtro-chips">\s*<span class="etiqueta-filtro-chip">JLPT:<\/span>[\s\S]*?<\/div>/,
+          ""
+        ),
+      });
+    }
+  }
+
+  // 5. Colecciones
   console.log("Generando catálogos paginados para colecciones y taxonomías...");
   const titulosColecciones = {
     joyo: "Kanjis Jōyō (常用漢字)",
@@ -645,7 +895,7 @@ ${bloqueTraducciones}
     });
   }
 
-  // 5. Portada principal
+  // 6. Portada principal
   const indexMd = `---
 title: "Inicio"
 showDate: false
@@ -671,7 +921,12 @@ Base de datos viva e interconectada a partir de Google Sheets.
     <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary);">部</div>
     <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Radicales</div>
     <div style="font-size: 0.85rem; color: var(--gray);">${catalogoComponentes.length} componentes glíficos</div>
-  </a>
+  </a>${listaGramaticaCatalogo.length > 0 ? `
+  <a href="./gramatica/" class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; text-decoration: none;">
+    <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--tertiary);">文</div>
+    <div style="font-weight: bold; font-size: 1.15rem; color: var(--dark);">Gramática</div>
+    <div style="font-size: 0.85rem; color: var(--gray);">${listaGramaticaCatalogo.length} puntos gramaticales</div>
+  </a>` : ""}
 </div>
 
 ### Exploración rápida por nivel (JLPT)
@@ -683,7 +938,15 @@ Base de datos viva e interconectada a partir de Google Sheets.
   <a href="./colecciones/jlpt-n1/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(255, 79, 216, 0.08); border: 1px solid var(--tertiary); font-weight: bold; font-size: 0.9rem; color: var(--tertiary); text-decoration: none;">N1 (${colecciones["jlpt-n1"].length})</a>
 </div>
 
-### Taxonomía de caracteres
+${listaGramaticaCatalogo.length > 0 ? `### Gramática por nivel (JLPT)
+<div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 1rem 0 2rem 0;">
+${["n5", "n4", "n3", "n2", "n1"]
+  .filter((n) => coleccionesGramatica[`jlpt-${n}`].length > 0)
+  .map((n) => `  <a href="./colecciones/gramatica-${n}/" class="chip-jlpt" style="padding: 4px 16px; border-radius: 20px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; font-size: 0.9rem; color: var(--secondary); text-decoration: none;">${n.toUpperCase()} (${coleccionesGramatica[`jlpt-${n}`].length})</a>`)
+  .join("\n")}
+</div>
+
+` : ""}### Taxonomía de caracteres
 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 1rem 0;">
   <a href="./colecciones/joyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Jōyō (${colecciones.joyo.length})</a>
   <a href="./colecciones/jinmeiyo/" class="chip-tax" style="padding: 6px 14px; border-radius: 6px; background: rgba(93, 255, 154, 0.06); border: 1px solid var(--secondary); font-weight: bold; color: var(--secondary); text-decoration: none;">Jinmeiyō (${colecciones.jinmeiyo.length})</a>
@@ -692,7 +955,7 @@ Base de datos viva e interconectada a partir de Google Sheets.
 </div>
 
 <div class="seccion-oculta-grafo">
-[[kanji/|Kanjis]] [[vocab/|Vocabulario]] [[componentes/|Componentes]]
+[[kanji/|Kanjis]] [[vocab/|Vocabulario]] [[componentes/|Componentes]]${listaGramaticaCatalogo.length > 0 ? " [[gramatica/|Gramática]]" : ""}
 [[colecciones/jlpt-n5/|N5]] [[colecciones/jlpt-n4/|N4]] [[colecciones/jlpt-n3/|N3]] [[colecciones/jlpt-n2/|N2]] [[colecciones/jlpt-n1/|N1]]
 [[colecciones/joyo/|Jōyō]] [[colecciones/jinmeiyo/|Jinmeiyō]] [[colecciones/kyuujitai/|Kyūjitai]] [[colecciones/hyougaiji/|Hyōgaiji]]
 </div>
