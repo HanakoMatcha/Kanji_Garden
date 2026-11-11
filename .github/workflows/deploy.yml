@@ -720,7 +720,7 @@ jobs:
               "<script data-persist defer src=\"https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js\"></script>" +
               "<script data-persist>" + js + "</script>" +
               "<script data-persist>" + jsCatalogo + "</script>";
-            const firma = " · Adaptado por Arantxa De Haro";
+            const firma = " · Adapted and expanded by Arantxa De Haro";
             let n = 0;
             (function recorrer(dir) {
               for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
