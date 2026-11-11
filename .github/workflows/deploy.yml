@@ -43,7 +43,7 @@ jobs:
               curl -fsSL --retry 3 "$u" | sha256sum
             done | sha256sum | cut -d' ' -f1) || huella="error-${{ github.run_id }}"
           fi
-          codigo="${{ hashFiles('build_test.js', 'practicador.js', 'catalogo.js', '.github/workflows/deploy.yml', 'quartz.layout.ts', 'quartz.config.ts') }}"
+          codigo="${{ hashFiles('build_test.js', 'practicador.js', 'catalogo.js', 'visitas.js', '.github/workflows/deploy.yml', 'quartz.layout.ts', 'quartz.config.ts') }}"
           echo "clave=publicado-codigo-${codigo}-hojas-${huella}" >> "$GITHUB_OUTPUT"
 
       - name: Buscar marca de publicación previa
@@ -709,17 +709,19 @@ jobs:
             ls -la public/static/catalogos
           fi
 
-      - name: Inyectar practicador y filtros de catálogo en el head de todas las páginas
+      - name: Inyectar practicador, filtros de catálogo y contador de visitas en el head de todas las páginas
         run: |
           node -e '
             const fs = require("fs");
             const path = require("path");
             const js = fs.readFileSync("practicador.js", "utf8");
             const jsCatalogo = fs.readFileSync("catalogo.js", "utf8");
+            const jsVisitas = fs.readFileSync("visitas.js", "utf8");
             const etiqueta =
               "<script data-persist defer src=\"https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js\"></script>" +
               "<script data-persist>" + js + "</script>" +
-              "<script data-persist>" + jsCatalogo + "</script>";
+              "<script data-persist>" + jsCatalogo + "</script>" +
+              "<script data-persist>" + jsVisitas + "</script>";
             const firma = " · Adapted and expanded by Arantxa De Haro";
             let n = 0;
             (function recorrer(dir) {
