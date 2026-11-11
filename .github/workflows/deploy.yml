@@ -43,7 +43,7 @@ jobs:
               curl -fsSL --retry 3 "$u" | sha256sum
             done | sha256sum | cut -d' ' -f1) || huella="error-${{ github.run_id }}"
           fi
-          codigo="${{ hashFiles('build_test.js', 'practicador.js', '.github/workflows/deploy.yml', 'quartz.layout.ts', 'quartz.config.ts') }}"
+          codigo="${{ hashFiles('build_test.js', 'practicador.js', 'catalogo.js', '.github/workflows/deploy.yml', 'quartz.layout.ts', 'quartz.config.ts') }}"
           echo "clave=publicado-codigo-${codigo}-hojas-${huella}" >> "$GITHUB_OUTPUT"
 
       - name: Buscar marca de publicación previa
@@ -121,6 +121,7 @@ jobs:
       - name: Limpiar contenido previo para modo test
         run: |
           rm -rf content/*
+          rm -rf catalogos
           rm -rf public/*
           rm -rf .quartz-cache
 
@@ -700,15 +701,25 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx quartz build 2>&1 | grep -v "isn't yet tracked by git"
 
-      - name: Inyectar practicador en el head de todas las páginas
+      - name: Publicar catálogos completos para los filtros
+        run: |
+          if [ -d catalogos ]; then
+            mkdir -p public/static/catalogos
+            cp catalogos/*.json public/static/catalogos/
+            ls -la public/static/catalogos
+          fi
+
+      - name: Inyectar practicador y filtros de catálogo en el head de todas las páginas
         run: |
           node -e '
             const fs = require("fs");
             const path = require("path");
             const js = fs.readFileSync("practicador.js", "utf8");
+            const jsCatalogo = fs.readFileSync("catalogo.js", "utf8");
             const etiqueta =
               "<script data-persist defer src=\"https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js\"></script>" +
-              "<script data-persist>" + js + "</script>";
+              "<script data-persist>" + js + "</script>" +
+              "<script data-persist>" + jsCatalogo + "</script>";
             let n = 0;
             (function recorrer(dir) {
               for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

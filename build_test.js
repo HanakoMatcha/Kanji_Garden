@@ -32,6 +32,8 @@ const TIPOS_GRAMATICA_ES = {
 
 const ORDEN_IMG = ["origin", "tensho", "gyosho", "sousho", "kso_images"];
 const CONTENT_DIR = "./content";
+// JSON con todas las entradas de cada catálogo filtrable; el workflow lo copia a public/static/catalogos.
+const CATALOGOS_DIR = "./catalogos";
 
 ["vocab", "kanji", "componentes", "colecciones", "gramatica"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
@@ -184,6 +186,8 @@ function renderBarraPaginacion(numPagina, totalPaginas, rutaBase) {
 }
 
 // gruposExtra: [{ etiqueta, opciones: [{ filtro, texto }] }] para chips adicionales (p. ej. tipo gramatical).
+// Solo genera el panel: la lógica vive en catalogo.js (inyectado por el workflow), que filtra
+// sobre el catálogo completo (static/catalogos/<id>.json) y no solo sobre la página actual.
 function renderFiltrosCatalogo(incluirTaxonomia = true, gruposExtra = []) {
   const htmlGruposExtra = gruposExtra
     .map(
@@ -220,53 +224,6 @@ function renderFiltrosCatalogo(incluirTaxonomia = true, gruposExtra = []) {
       : ""
   }${htmlGruposExtra}
 </div>
-<script>
-  (function() {
-    function initFiltrosCatalogo() {
-      const panel = document.querySelector('.contenedor-filtros-catalogo');
-      if (!panel || panel.dataset.bound) return;
-      panel.dataset.bound = "true";
-      const tarjetas = Array.from(document.querySelectorAll('.card-catalogo-item, .card-catalogo-vocab, .card-catalogo-gramatica'));
-      const botones = Array.from(panel.querySelectorAll('.btn-chip-filtro'));
-      const btnReset = panel.querySelector('#btn-limpiar-chips');
-      let filtrosActivos = new Set();
-      function aplicar() {
-        const arr = Array.from(filtrosActivos);
-        tarjetas.forEach(t => {
-          const tagsStr = (t.dataset.tags || '').toLowerCase();
-          const visible = arr.length === 0 || arr.every(f => tagsStr.includes(f));
-          t.style.display = visible ? '' : 'none';
-        });
-      }
-      botones.forEach(b => {
-        b.addEventListener('click', () => {
-          const f = b.dataset.filtro;
-          if (filtrosActivos.has(f)) {
-            filtrosActivos.delete(f);
-            b.classList.remove('activo');
-          } else {
-            filtrosActivos.add(f);
-            b.classList.add('activo');
-          }
-          aplicar();
-        });
-      });
-      if (btnReset) {
-        btnReset.addEventListener('click', () => {
-          filtrosActivos.clear();
-          botones.forEach(b => b.classList.remove('activo'));
-          aplicar();
-        });
-      }
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initFiltrosCatalogo);
-    } else {
-      initFiltrosCatalogo();
-    }
-    document.addEventListener('nav', initFiltrosCatalogo);
-  })();
-</script>
 `;
 }
 
@@ -366,6 +323,27 @@ function generarCatalogoPaginado({
     fs.mkdirSync(directorioDestino, { recursive: true });
   }
   const totalPaginas = Math.ceil(items.length / porPagina) || 1;
+
+  // Catálogo con filtros: se exporta el universo completo para que los chips filtren
+  // todas las entradas y paginen los resultados, no solo las 50 de la página abierta.
+  if (filtrosHtml) {
+    const idCatalogo = rutaBase.replace(/^\/+|\/+$/g, "").replace(/\//g, "__");
+    if (!fs.existsSync(CATALOGOS_DIR)) fs.mkdirSync(CATALOGOS_DIR, { recursive: true });
+    const datos = {
+      porPagina,
+      items: items.map((it) => {
+        const html = renderItemMarkdown(it);
+        const tags = (html.match(/data-tags="([^"]*)"/) || [])[1] || "";
+        return [tags, html];
+      }),
+    };
+    escribirSiCambio(path.join(CATALOGOS_DIR, `${idCatalogo}.json`), JSON.stringify(datos));
+    filtrosHtml = filtrosHtml.replace(
+      '<div class="contenedor-filtros-catalogo">',
+      `<div class="contenedor-filtros-catalogo" data-catalogo="${idCatalogo}" data-por-pagina="${porPagina}">`
+    );
+  }
+
   for (let i = 0; i < totalPaginas; i++) {
     const numPagina = i + 1;
     const inicio = i * porPagina;
@@ -395,7 +373,7 @@ showToc: false
 enableFolderListing: false
 ---
 # ${tituloCatalogo}
-Mostrando **${lote.length}** de **${items.length}** entradas registradas.
+<p class="resumen-catalogo">Mostrando <strong>${lote.length}</strong> de <strong>${items.length}</strong> entradas registradas.</p>
 ${filtrosHtml}
 ${navBar}
 
