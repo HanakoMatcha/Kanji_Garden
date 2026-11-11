@@ -720,6 +720,7 @@ jobs:
               "<script data-persist defer src=\"https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js\"></script>" +
               "<script data-persist>" + js + "</script>" +
               "<script data-persist>" + jsCatalogo + "</script>";
+            const firma = " · Adaptado por Arantxa De Haro";
             let n = 0;
             (function recorrer(dir) {
               for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -728,7 +729,9 @@ jobs:
                 else if (e.name.endsWith(".html")) {
                   const html = fs.readFileSync(p, "utf8");
                   if (!html.includes("</head>") || html.includes("__kanjiPracticador")) continue;
-                  fs.writeFileSync(p, html.replace("</head>", etiqueta + "</head>"));
+                  // Firma en el pie, junto a "Created with Quartz vX © año".
+                  const conFirma = html.replace(/(<footer\b[^>]*>\s*<p>[\s\S]*?)(<\/p>)/, "$1" + firma + "$2");
+                  fs.writeFileSync(p, conFirma.replace("</head>", etiqueta + "</head>"));
                   n++;
                 }
               }
