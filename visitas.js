@@ -66,7 +66,7 @@
     var caja = document.getElementById("kg-visitas");
     if (!caja) return;
     var num = caja.querySelector(".kg-visitas-num");
-    fetch(GC + "/counter/TOTAL.json?_=" + Date.now(), { cache: "no-store" })
+    fetch(GC + "/counter/TOTAL.json", { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
       .then(function (d) { if (d && d.count != null) num.textContent = d.count; })
       .catch(function () { if (!silencioso) num.textContent = "—"; });
