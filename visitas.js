@@ -22,9 +22,17 @@
     caja.target = "_blank";
     caja.rel = "noopener";
     caja.title = "Ver estadísticas (países, páginas, navegadores…)";
+    caja.setAttribute("data-router-ignore", "");
+    caja.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var w = window.open(GC + "/", "_blank", "noopener");
+      if (!w) location.href = GC + "/";
+    }, true);
     caja.innerHTML =
       '<span class="kg-visitas-etiqueta">Visitas</span>' +
-      '<span class="kg-visitas-num">…</span>';
+      '<span class="kg-visitas-num">…</span>' +
+      '<span class="kg-visitas-ir" aria-hidden="true">↗</span>';
     return caja;
   }
 
@@ -63,6 +71,10 @@
     "margin-top:.6rem;padding:6px 12px;border:1px solid var(--lightgray);border-radius:8px;" +
     "background:rgba(255,255,255,.02);font-size:.8rem;max-width:186px;box-sizing:border-box;" +
     "text-decoration:none!important;transition:border-color .2s,box-shadow .2s}" +
+    "#kg-visitas{cursor:pointer;position:relative;z-index:5}" +
+    "#kg-visitas .kg-visitas-num{margin-left:auto}" +
+    "#kg-visitas .kg-visitas-ir{color:var(--gray);font-size:.8rem}" +
+    "#kg-visitas:hover .kg-visitas-ir{color:var(--secondary)}" +
     "#kg-visitas:hover{border-color:var(--secondary);box-shadow:0 0 8px rgba(93,255,154,.3)}" +
     "#kg-visitas .kg-visitas-etiqueta{color:var(--gray);text-transform:uppercase;letter-spacing:1px;font-weight:600;font-size:.7rem}" +
     "#kg-visitas .kg-visitas-num{color:var(--secondary);font-weight:700;font-variant-numeric:tabular-nums}" +
