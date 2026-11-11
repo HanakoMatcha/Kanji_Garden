@@ -57,11 +57,19 @@
     var caja = colocar();
     contar();
     if (!caja) return;
+    leerTotal(false);
+    // Segunda lectura cuando GoatCounter ya ha procesado esta visita.
+    setTimeout(function () { leerTotal(true); }, 6000);
+  }
+
+  function leerTotal(silencioso) {
+    var caja = document.getElementById("kg-visitas");
+    if (!caja) return;
     var num = caja.querySelector(".kg-visitas-num");
-    fetch(GC + "/counter/TOTAL.json")
+    fetch(GC + "/counter/TOTAL.json?_=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
-      .then(function (d) { num.textContent = d.count || "0"; })
-      .catch(function () { num.textContent = "—"; });
+      .then(function (d) { if (d && d.count != null) num.textContent = d.count; })
+      .catch(function () { if (!silencioso) num.textContent = "—"; });
   }
 
   // Estilos
