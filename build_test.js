@@ -328,11 +328,11 @@ function limpiarEtimologiaWiktionary(raw) {
     .replace(/\[\[(?:[^|{}]*\|)*([^\]]+)\]\]/g, "$1")
     .replace(/\{\{([^{}]*)\}\}/g, (_, cuerpo) => renderPlantillaWiktionary(cuerpo));
 
-  // Resúmenes de etimón: "zh :inh sit-pro:*ku(w)" → "Heredado de Proto-Sino-Tibetan *ku(w)"
+  // Resúmenes de etimón: "zh :inh sit-pro:*ku(w)" → "Inherited from Proto-Sino-Tibetan *ku(w)"
   texto = texto.replace(
     new RegExp(`(?:(?<![\\w-])(?:${TOKEN_CODIGO})\\s+)?:(inh|der|bor|cal|uder|ubor)\\s+((?:${TOKEN_CODIGO}:\\S+\\s*)+)`, "g"),
     (todo, tipo, pares) => {
-      const VERBOS = { inh: "Heredado de", der: "Derivado de", uder: "Derivado de", bor: "Préstamo de", ubor: "Préstamo de", cal: "Calco de" };
+      const VERBOS = { inh: "Inherited from", der: "Derived from", uder: "Derived from", bor: "Borrowed from", ubor: "Borrowed from", cal: "Calque of" };
       const partes = pares.trim().split(/\s+/).map((par) => {
         const [codigo, ...resto] = par.split(":");
         const nombre = nombreIdioma(codigo);
@@ -343,21 +343,21 @@ function limpiarEtimologiaWiktionary(raw) {
     }
   );
 
-  // Leyendas de imagen: "thumb|zh 女性 |" → "Ilustración (Chinese): 女性 |"
+  // Leyendas de imagen: "thumb|zh 女性 |" → "Illustration (Chinese): 女性 |"
   texto = texto.replace(/(?:thumb|left|right)\|([^|]+)\|/gi, (_, leyenda) => {
     const m = leyenda.trim().match(new RegExp(`^(${TOKEN_CODIGO})\\s+(.+)$`));
     return m && esIdiomaConocido(m[1])
-      ? `Ilustración (${marcarNombre(nombreIdioma(m[1]))}): ${m[2].trim()} |`
-      : `Ilustración: ${leyenda.trim()} |`;
+      ? `Illustration (${marcarNombre(nombreIdioma(m[1]))}): ${m[2].trim()} |`
+      : `Illustration: ${leyenda.trim()} |`;
   });
 
-  // Lista de idiomas al inicio de un segmento: "zh:,yue: |" → "Lenguas: Chinese, Cantonese |"
+  // Lista de idiomas al inicio de un segmento: "zh:,yue: |" → "Languages: Chinese, Cantonese |"
   texto = texto.replace(
     new RegExp(`(^|\\|)\\s*((?:${TOKEN_CODIGO}:\\s*,?\\s*)+)(?=\\||$)`, "g"),
     (todo, inicio, lista) => {
       const codigos = lista.split(/[:,\s]+/).filter(Boolean);
       if (!codigos.every(esIdiomaConocido)) return todo;
-      return `${inicio} Lenguas: ${codigos.map((c) => marcarNombre(nombreIdioma(c))).join(", ")} `;
+      return `${inicio} Languages: ${codigos.map((c) => marcarNombre(nombreIdioma(c))).join(", ")} `;
     }
   );
 
