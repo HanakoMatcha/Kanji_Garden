@@ -134,7 +134,7 @@ function esVerdadero(val) {
 }
 
 // Códigos de idioma de Wiktionary → nombre. La tabla vive en idiomas_wiktionary.json:
-//  - es / familias: nombres en español de lenguas y familias frecuentes
+//  - nombres / familias: lenguas y familias frecuentes (nombres en inglés, como en Wiktionary)
 //  - iso: tabla ISO 639-3/639-1 completa (nombres en inglés) como respaldo
 const TABLA_IDIOMAS = JSON.parse(
   fs.readFileSync(new URL("./idiomas_wiktionary.json", import.meta.url), "utf8")
@@ -157,29 +157,28 @@ const LENGUAS_ENTRADA = new Set(["zh", "ja", "ko", "vi", "yue", "cmn", "nan", "o
 const CONTEXTO_IDIOMA = new Set(["from", "compare", "cf.", "cognate", "with", "and", "or", "of", "also", "see", "like", "whence", "vs."]);
 
 function nombreProto(base) {
-  const n = TABLA_IDIOMAS.familias[base] || TABLA_IDIOMAS.es[base];
-  if (n) return /[\s-]/.test(n) ? `proto-${n}` : `proto${n}`;
-  const iso = TABLA_IDIOMAS.iso[base];
-  return iso ? `Proto-${iso}` : null;
+  const n = TABLA_IDIOMAS.familias[base] || TABLA_IDIOMAS.nombres[base];
+  const nombre = n || TABLA_IDIOMAS.iso[base];
+  return nombre ? `Proto-${nombre}` : null;
 }
 
 // Devuelve el nombre del idioma o null si el código no se conoce
 function nombreIdioma(codigo) {
-  const { es, familias, iso } = TABLA_IDIOMAS;
-  if (es[codigo]) return es[codigo];
+  const { nombres, familias, iso } = TABLA_IDIOMAS;
+  if (nombres[codigo]) return nombres[codigo];
   if (familias[codigo]) return familias[codigo];
   if (codigo.endsWith("-pro")) return nombreProto(codigo.slice(0, -4));
   return iso[codigo] || null;
 }
 
-// ¿Tiene nombre en español (no solo el respaldo ISO en inglés)?
+// ¿Es un código frecuente de la tabla (no solo del respaldo ISO)?
 function esIdiomaConocido(codigo) {
-  const { es, familias } = TABLA_IDIOMAS;
+  const { nombres, familias } = TABLA_IDIOMAS;
   if (codigo.endsWith("-pro")) {
     const base = codigo.slice(0, -4);
-    return Boolean(familias[base] || es[base]);
+    return Boolean(familias[base] || nombres[base]);
   }
-  return Boolean(es[codigo] || familias[codigo]);
+  return Boolean(nombres[codigo] || familias[codigo]);
 }
 
 // Plantillas que solo son de mantenimiento o maquetación: se descartan
@@ -280,7 +279,7 @@ function traducirCodigosIdioma(texto) {
     }
 
     if (reemplazo) {
-      // "chino antiguo - /*ni[t]-s/": el guion es una forma vacía de la plantilla
+      // "Old Chinese - /*ni[t]-s/": el guion es una forma vacía de la plantilla
       const formaVacia = texto.slice(fin).match(/^[ \t]+-(?=[ \t])/);
       if (formaVacia) fin += formaVacia[0].length;
       salida += texto.slice(ultimo, inicio) + reemplazo;
@@ -314,9 +313,9 @@ function decidirCodigoSuelto(codigo, antes, despues) {
   if (codigo.includes("-")) return nombre;
   if (siguienteExtranjero && !(trasHangul && !esIdiomaConocido(codigo))) return nombre;
 
-  // A partir de aquí solo códigos con nombre en español (no familias sueltas,
+  // A partir de aquí solo códigos frecuentes de la tabla (no familias sueltas,
   // que coinciden con palabras como "map", "sit" o "tai")
-  const esFamiliaSuelta = TABLA_IDIOMAS.familias[codigo] && !TABLA_IDIOMAS.es[codigo];
+  const esFamiliaSuelta = TABLA_IDIOMAS.familias[codigo] && !TABLA_IDIOMAS.nombres[codigo];
   if (!esIdiomaConocido(codigo) || esFamiliaSuelta) return null;
   if ((CONTEXTO_IDIOMA.has(anterior.toLowerCase()) && siguePalabra) || trasSeparador || inicioSegmento) return nombre;
   if (terminaEnPuntuacion && LENGUAS_ENTRADA.has(codigo)) return nombre;
@@ -329,11 +328,11 @@ function limpiarEtimologiaWiktionary(raw) {
     .replace(/\[\[(?:[^|{}]*\|)*([^\]]+)\]\]/g, "$1")
     .replace(/\{\{([^{}]*)\}\}/g, (_, cuerpo) => renderPlantillaWiktionary(cuerpo));
 
-  // Resúmenes de etimón: "zh :inh sit-pro:*ku(w)" → "Heredado del protosinotibetano *ku(w)"
+  // Resúmenes de etimón: "zh :inh sit-pro:*ku(w)" → "Heredado de Proto-Sino-Tibetan *ku(w)"
   texto = texto.replace(
     new RegExp(`(?:(?<![\\w-])(?:${TOKEN_CODIGO})\\s+)?:(inh|der|bor|cal|uder|ubor)\\s+((?:${TOKEN_CODIGO}:\\S+\\s*)+)`, "g"),
     (todo, tipo, pares) => {
-      const VERBOS = { inh: "Heredado del", der: "Derivado del", uder: "Derivado del", bor: "Préstamo del", ubor: "Préstamo del", cal: "Calco del" };
+      const VERBOS = { inh: "Heredado de", der: "Derivado de", uder: "Derivado de", bor: "Préstamo de", ubor: "Préstamo de", cal: "Calco de" };
       const partes = pares.trim().split(/\s+/).map((par) => {
         const [codigo, ...resto] = par.split(":");
         const nombre = nombreIdioma(codigo);
@@ -344,7 +343,7 @@ function limpiarEtimologiaWiktionary(raw) {
     }
   );
 
-  // Leyendas de imagen: "thumb|zh 女性 |" → "Ilustración (chino): 女性 |"
+  // Leyendas de imagen: "thumb|zh 女性 |" → "Ilustración (Chinese): 女性 |"
   texto = texto.replace(/(?:thumb|left|right)\|([^|]+)\|/gi, (_, leyenda) => {
     const m = leyenda.trim().match(new RegExp(`^(${TOKEN_CODIGO})\\s+(.+)$`));
     return m && esIdiomaConocido(m[1])
@@ -352,7 +351,7 @@ function limpiarEtimologiaWiktionary(raw) {
       : `Ilustración: ${leyenda.trim()} |`;
   });
 
-  // Lista de idiomas al inicio de un segmento: "zh:,yue: |" → "Lenguas: chino, cantonés |"
+  // Lista de idiomas al inicio de un segmento: "zh:,yue: |" → "Lenguas: Chinese, Cantonese |"
   texto = texto.replace(
     new RegExp(`(^|\\|)\\s*((?:${TOKEN_CODIGO}:\\s*,?\\s*)+)(?=\\||$)`, "g"),
     (todo, inicio, lista) => {
@@ -362,7 +361,7 @@ function limpiarEtimologiaWiktionary(raw) {
     }
   );
 
-  // Etiquetas sueltas "zh: texto" → "chino: texto"
+  // Etiquetas sueltas "zh: texto" → "Chinese: texto"
   texto = texto.replace(
     new RegExp(`(?<![\\w-])(${TOKEN_CODIGO}):`, "g"),
     (todo, c) => (esIdiomaConocido(c) && !PALABRAS_NO_IDIOMA.has(c) ? `${marcarNombre(nombreIdioma(c))}:` : todo)
