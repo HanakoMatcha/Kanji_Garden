@@ -133,15 +133,156 @@ function esVerdadero(val) {
   return s === "1" || s === "true" || s === "sí" || s === "si";
 }
 
+// Códigos de idioma de Wiktionary → nombre en español
+const IDIOMAS_WIKTIONARY = {
+  zh: "chino",
+  yue: "cantonés",
+  cmn: "mandarín",
+  hak: "hakka",
+  nan: "min del sur",
+  och: "chino antiguo",
+  ltc: "chino medio",
+  ja: "japonés",
+  ojp: "japonés antiguo",
+  ko: "coreano",
+  okm: "coreano medio",
+  vi: "vietnamita",
+  bo: "tibetano",
+  my: "birmano",
+  omx: "mon antiguo",
+  mnw: "mon",
+  ssm: "semai",
+  kac: "jingpo",
+  cdm: "chepang",
+  lhu: "lahu",
+  lus: "mizo",
+  sti: "stieng",
+  bca: "bai central",
+  und: "lengua indeterminada",
+  "sit-pro": "protosinotibetano",
+  "tbq-pro": "prototibetobirmano",
+  "sit-bai-pro": "protobai",
+  "tbq-kuk-pro": "protokuki-chin",
+  "tbq-lol-pro": "protololoísh",
+  "mkh-vie-pro": "protovietico",
+  "mkh-mnc-pro": "protomónico",
+  "aav-pro": "protoaustroasiático",
+  "kar-pro": "protokaren",
+  "qfa-lic-pro": "protohlai",
+};
+
+// Palabras tras las que un código corto se interpreta como idioma (y no como palabra)
+const CONTEXTO_IDIOMA = new Set(["from", "compare", "cf.", "cognate"]);
+
+const CODIGOS_RE = Object.keys(IDIOMAS_WIKTIONARY)
+  .sort((a, b) => b.length - a.length)
+  .map((c) => c.replace(/-/g, "\\-"))
+  .join("|");
+
+function nombreIdioma(codigo) {
+  return IDIOMAS_WIKTIONARY[codigo] || codigo;
+}
+
+// Plantillas que solo son de mantenimiento o maquetación: se descartan
+const PLANTILLAS_DESCARTABLES = /^(rfe|rfv-etym|attention|wp|wikipedia|top\d?|mid\d?|bottom|multiple images|zh-see|ja-see|ja-kanjitab|picdic\w*|cln|c|C|tlb|lb|defdate|nb\.\.\.)$/i;
+// Plantillas cuyos argumentos son "lengua destino | lengua origen | forma | alt | glosa"
+const PLANTILLAS_ORIGEN = /^(inh|inh\+|der|der\+|bor|bor\+|lbor|slbor|cal|calque|sl|semantic loan|uder|ubor|noncog|ncog)$/i;
+// Plantillas "lengua | forma | alt | glosa" que muestran el nombre de la lengua
+const PLANTILLAS_COGNADO = /^(cog|cognate|m\+)$/i;
+// Igual, pero Wiktionary solo muestra la forma (sin nombre de lengua)
+const PLANTILLAS_MENCION = /^(m|mention|l|link|ll)$/i;
+
+// Convierte una plantilla de Wiktionary en texto legible en vez de borrarla
+function renderPlantillaWiktionary(cuerpo) {
+  const partes = cuerpo.split("|").map((p) => p.trim());
+  const nombre = partes.shift() || "";
+  if (PLANTILLAS_DESCARTABLES.test(nombre)) return "";
+
+  const posicionales = [];
+  const nombrados = {};
+  for (const p of partes) {
+    const m = p.match(/^([\w-]+)=(.*)$/);
+    if (m) nombrados[m[1]] = m[2].trim();
+    else posicionales.push(p);
+  }
+
+  const forma = (lengua, palabra, alt, glosa) => {
+    const glosaFinal = glosa || nombrados.t || nombrados.gloss || "";
+    const tr = nombrados.tr ? ` (${nombrados.tr})` : "";
+    return [
+      lengua ? nombreIdioma(lengua) : "",
+      (alt || (palabra === "-" ? "" : palabra) || "") + tr,
+      glosaFinal ? `«${glosaFinal}»` : "",
+    ].filter(Boolean).join(" ");
+  };
+
+  if (PLANTILLAS_ORIGEN.test(nombre)) {
+    const [, origen, palabra, alt, glosa] = posicionales;
+    return forma(origen, palabra, alt, glosa);
+  }
+  if (PLANTILLAS_COGNADO.test(nombre)) {
+    const [lengua, palabra, alt, glosa] = posicionales;
+    return forma(lengua, palabra, alt, glosa);
+  }
+  if (PLANTILLAS_MENCION.test(nombre)) {
+    const [, palabra, alt, glosa] = posicionales;
+    return forma("", palabra, alt, glosa);
+  }
+
+  // Plantilla desconocida: conservar sus argumentos visibles
+  return posicionales
+    .filter(Boolean)
+    .map((p) => (IDIOMAS_WIKTIONARY[p] ? nombreIdioma(p) : p))
+    .join(" ");
+}
+
 function limpiarEtimologiaWiktionary(raw) {
   if (!raw) return "Sin datos registrados.";
   let texto = raw
     .replace(/\[\[(?:[^|{}]*\|)*([^\]]+)\]\]/g, "$1")
-    .replace(/\{\{[^}]*\}\}/g, "")
-    .replace(/(?:thumb|left|right)\|[^|]+\|/gi, "")
-    .replace(/\b(zh|yue|cmn|hak|nan):\s*/gi, "")
-    .replace(/\b(sit-pro|tbq-pro|sit-bai-pro|tbq-kuk-pro|tbq-lol-pro|mkh-vie-pro|mkh-mnc-pro|aav-pro|kar-pro|qfa-lic-pro)\s+\*/gi, "proto-*")
-    .replace(/\b(bo|my|vi|und|omx|mnw|ssm|kac|cdm|lhu|lus|sti|bca)\s+/gi, "")
+    .replace(/\{\{([^{}]*)\}\}/g, (_, cuerpo) => renderPlantillaWiktionary(cuerpo));
+
+  // Leyendas de imagen: "thumb|zh 女性 |" → "Ilustración (chino): 女性 |"
+  texto = texto.replace(/(?:thumb|left|right)\|([^|]+)\|/gi, (_, leyenda) => {
+    const m = leyenda.trim().match(new RegExp(`^(${CODIGOS_RE})\\s+(.+)$`));
+    return m
+      ? `Ilustración (${nombreIdioma(m[1])}): ${m[2].trim()} |`
+      : `Ilustración: ${leyenda.trim()} |`;
+  });
+
+  // Lista de idiomas al inicio de un segmento: "zh:,yue: |" → "Lenguas: chino, cantonés |"
+  texto = texto.replace(
+    new RegExp(`(^|\\|)\\s*((?:(?:${CODIGOS_RE}):\\s*,?\\s*)+)(?=\\||$)`, "g"),
+    (_, inicio, lista) => {
+      const nombres = lista.split(/[:,\s]+/).filter(Boolean).map(nombreIdioma);
+      return `${inicio} Lenguas: ${nombres.join(", ")} `;
+    }
+  );
+
+  // Etiquetas sueltas "zh: texto" → "chino: texto"
+  texto = texto.replace(
+    new RegExp(`(?<![\\w-])(${CODIGOS_RE}):`, "g"),
+    (_, c) => `${nombreIdioma(c)}:`
+  );
+
+  // Códigos dentro del texto. En cadenas como "zh sit-pro *naq" el primer
+  // código es la lengua de la entrada y el último la lengua de origen.
+  texto = texto.replace(
+    new RegExp(`(?<![\\w-])((?:${CODIGOS_RE})(?:\\s+(?:${CODIGOS_RE}))*)(?=\\s+(\\S))`, "g"),
+    (cadena, _c, siguiente, offset, total) => {
+      const codigos = cadena.split(/\s+/);
+      const anterior = (total.slice(0, offset).match(/(\S+)\s*$/) || [])[1] || "";
+      const esIdioma =
+        codigos.length > 1 ||
+        siguiente === "*" ||
+        /[^\x00-\x7F]/.test(siguiente) ||
+        CONTEXTO_IDIOMA.has(anterior.toLowerCase());
+      return esIdioma ? nombreIdioma(codigos[codigos.length - 1]) : cadena;
+    }
+  );
+
+  texto = texto
+    .replace(/[ \t]{2,}/g, " ")
     .replace(/\s*\|\s*\*\s*/g, "\n\n- ")
     .replace(/\s*\|\s*/g, "\n\n")
     .replace(/\n{3,}/g, "\n\n")
