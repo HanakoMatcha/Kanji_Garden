@@ -133,54 +133,53 @@ function esVerdadero(val) {
   return s === "1" || s === "true" || s === "sí" || s === "si";
 }
 
-// Códigos de idioma de Wiktionary → nombre en español
-const IDIOMAS_WIKTIONARY = {
-  zh: "chino",
-  yue: "cantonés",
-  cmn: "mandarín",
-  hak: "hakka",
-  nan: "min del sur",
-  och: "chino antiguo",
-  ltc: "chino medio",
-  ja: "japonés",
-  ojp: "japonés antiguo",
-  ko: "coreano",
-  okm: "coreano medio",
-  vi: "vietnamita",
-  bo: "tibetano",
-  my: "birmano",
-  omx: "mon antiguo",
-  mnw: "mon",
-  ssm: "semai",
-  kac: "jingpo",
-  cdm: "chepang",
-  lhu: "lahu",
-  lus: "mizo",
-  sti: "stieng",
-  bca: "bai central",
-  und: "lengua indeterminada",
-  "sit-pro": "protosinotibetano",
-  "tbq-pro": "prototibetobirmano",
-  "sit-bai-pro": "protobai",
-  "tbq-kuk-pro": "protokuki-chin",
-  "tbq-lol-pro": "protololoísh",
-  "mkh-vie-pro": "protovietico",
-  "mkh-mnc-pro": "protomónico",
-  "aav-pro": "protoaustroasiático",
-  "kar-pro": "protokaren",
-  "qfa-lic-pro": "protohlai",
-};
+// Códigos de idioma de Wiktionary → nombre. La tabla vive en idiomas_wiktionary.json:
+//  - es / familias: nombres en español de lenguas y familias frecuentes
+//  - iso: tabla ISO 639-3/639-1 completa (nombres en inglés) como respaldo
+const TABLA_IDIOMAS = JSON.parse(
+  fs.readFileSync(new URL("./idiomas_wiktionary.json", import.meta.url), "utf8")
+);
 
-// Palabras tras las que un código corto se interpreta como idioma (y no como palabra)
-const CONTEXTO_IDIOMA = new Set(["from", "compare", "cf.", "cognate"]);
+// Palabras inglesas que también son códigos ISO: nunca se tratan como idioma
+const PALABRAS_NO_IDIOMA = new Set(`a an the of to in on at by as is it be or and for but not no so do if up us we he me my
+are was has had may can see one two six ten how who why way out use due its his her she him our you any all few new old own
+per via too yet now off far end act add age ago aid aim air arm art ask bad bag bar bat bed big bit box boy bus buy car cat
+cow cry cup cut day did die dig dog dry ear eat egg eye fan fat fee fit fix fly fog fun gas get god got gun guy hat hit hot
+ice ill job joy key kid lab law lay led leg let lie lip lot low mad man map mid mix mud net nor nut odd oil ore pan pay pen
+pet pie pig pit pot put rat raw red rid rim rod row rub run sad sat saw say sea set sew shy sin sir sit ski sky son spy
+sum sun tag tan tap tax tea tie tin tip toe ton top toy try tub van war wax web wet win wit won yes zoo et al ca cf vs pp ad
+bc ce ie eg ok oh ah ha hi om tv pc id`.split(/\s+/));
 
-const CODIGOS_RE = Object.keys(IDIOMAS_WIKTIONARY)
-  .sort((a, b) => b.length - a.length)
-  .map((c) => c.replace(/-/g, "\\-"))
-  .join("|");
+// Lenguas de la entrada: en "zh sit-pro *naq" el primer código es la lengua
+// de la entrada (Wiktionary no la muestra) y el segundo la lengua de origen.
+const LENGUAS_ENTRADA = new Set(["zh", "ja", "ko", "vi", "yue", "cmn", "nan", "och", "ltc", "lzh", "okm", "ojp"]);
+// Palabras tras las que un código conocido se lee como idioma
+const CONTEXTO_IDIOMA = new Set(["from", "compare", "cf.", "cognate", "with", "and", "or", "of", "also", "see", "like", "whence", "vs."]);
 
+function nombreProto(base) {
+  const n = TABLA_IDIOMAS.familias[base] || TABLA_IDIOMAS.es[base];
+  if (n) return /[\s-]/.test(n) ? `proto-${n}` : `proto${n}`;
+  const iso = TABLA_IDIOMAS.iso[base];
+  return iso ? `Proto-${iso}` : null;
+}
+
+// Devuelve el nombre del idioma o null si el código no se conoce
 function nombreIdioma(codigo) {
-  return IDIOMAS_WIKTIONARY[codigo] || codigo;
+  const { es, familias, iso } = TABLA_IDIOMAS;
+  if (es[codigo]) return es[codigo];
+  if (familias[codigo]) return familias[codigo];
+  if (codigo.endsWith("-pro")) return nombreProto(codigo.slice(0, -4));
+  return iso[codigo] || null;
+}
+
+// ¿Tiene nombre en español (no solo el respaldo ISO en inglés)?
+function esIdiomaConocido(codigo) {
+  const { es, familias } = TABLA_IDIOMAS;
+  if (codigo.endsWith("-pro")) {
+    const base = codigo.slice(0, -4);
+    return Boolean(familias[base] || es[base]);
+  }
+  return Boolean(es[codigo] || familias[codigo]);
 }
 
 // Plantillas que solo son de mantenimiento o maquetación: se descartan
@@ -210,7 +209,7 @@ function renderPlantillaWiktionary(cuerpo) {
     const glosaFinal = glosa || nombrados.t || nombrados.gloss || "";
     const tr = nombrados.tr ? ` (${nombrados.tr})` : "";
     return [
-      lengua ? nombreIdioma(lengua) : "",
+      lengua ? (nombreIdioma(lengua) ? marcarNombre(nombreIdioma(lengua)) : lengua) : "",
       (alt || (palabra === "-" ? "" : palabra) || "") + tr,
       glosaFinal ? `«${glosaFinal}»` : "",
     ].filter(Boolean).join(" ");
@@ -232,8 +231,96 @@ function renderPlantillaWiktionary(cuerpo) {
   // Plantilla desconocida: conservar sus argumentos visibles
   return posicionales
     .filter(Boolean)
-    .map((p) => (IDIOMAS_WIKTIONARY[p] ? nombreIdioma(p) : p))
+    .map((p) => (esIdiomaConocido(p) ? marcarNombre(nombreIdioma(p)) : p))
     .join(" ");
+}
+
+const TOKEN_CODIGO = "[a-z]{2,3}(?:-[a-z]{2,5}){0,2}";
+
+// Los nombres ya traducidos se envuelven en marcadores para que no se vuelvan
+// a leer como códigos ("min del sur" → "del" no es Delaware)
+const marcarNombre = (n) => `\u0001${n}\u0002`;
+const quitarMarcas = (t) => t.replace(/[\u0001\u0002]/g, "");
+
+// Traduce los códigos de idioma sueltos en el texto ya aplanado de Wiktionary.
+// Solo se traduce cuando el contexto indica que es un idioma, para no tocar
+// palabras inglesas que coinciden con códigos ISO ("to", "may", "sit"...).
+function traducirCodigosIdioma(texto) {
+  const re = new RegExp(`(?<![\\p{L}\\p{N}_*'’.-])(${TOKEN_CODIGO})(?![\\p{L}\\p{N}_'’=-])`, "gu");
+  const reSiguiente = new RegExp(`^\\s+(${TOKEN_CODIGO})(?![\\p{L}\\p{N}_'’-])`, "u");
+  const protegidos = [];
+  texto = texto.replace(/\u0001[^\u0002]*\u0002/g, (t) => `\u0003${protegidos.push(t) - 1}\u0004`);
+  let salida = "";
+  let ultimo = 0;
+  let m;
+
+  while ((m = re.exec(texto))) {
+    const codigo = m[1];
+    const inicio = m.index;
+    let fin = inicio + codigo.length;
+    let reemplazo = null;
+
+    // Cadena "lengua de entrada + lengua de origen": se queda solo la de origen
+    const siguienteCodigo = texto.slice(fin).match(reSiguiente);
+    const origen = siguienteCodigo && siguienteCodigo[1];
+    // También "tbq-blg sit-pro": un código con guion desconocido seguido de otro
+    const esLenguaEntrada =
+      LENGUAS_ENTRADA.has(codigo) || (codigo.includes("-") && !nombreIdioma(codigo));
+    if (
+      esLenguaEntrada &&
+      origen &&
+      nombreIdioma(origen) &&
+      // "sit", "map", "tai"... son palabras inglesas pero tras "zh" son familias
+      (!PALABRAS_NO_IDIOMA.has(origen) || TABLA_IDIOMAS.familias[origen])
+    ) {
+      reemplazo = nombreIdioma(siguienteCodigo[1]);
+      fin += siguienteCodigo[0].length;
+    } else {
+      reemplazo = decidirCodigoSuelto(codigo, texto.slice(0, inicio), texto.slice(fin));
+    }
+
+    if (reemplazo) {
+      // "chino antiguo - /*ni[t]-s/": el guion es una forma vacía de la plantilla
+      const formaVacia = texto.slice(fin).match(/^[ \t]+-(?=[ \t])/);
+      if (formaVacia) fin += formaVacia[0].length;
+      salida += texto.slice(ultimo, inicio) + reemplazo;
+      ultimo = fin;
+    }
+    re.lastIndex = fin;
+  }
+  return (salida + texto.slice(ultimo)).replace(/\u0003(\d+)\u0004/g, (_, i) => protegidos[i]);
+}
+
+function decidirCodigoSuelto(codigo, antes, despues) {
+  const nombre = nombreIdioma(codigo);
+  if (!nombre) return null;
+
+  const siguiente = (despues.match(/^\s+(\S+)/) || [])[1] || "";
+  const anterior = (antes.match(/(\S+)\s*$/) || [])[1] || "";
+  const inicioSegmento = /(^|\|)\s*$/.test(antes);
+  const siguePalabra = /^\s+[\p{L}\p{N}*]/u.test(despues);
+  const trasSeparador = /[,;]$/.test(anterior) && siguePalabra;
+  const terminaEnPuntuacion = /^[.,;:)]/.test(despues) || despues.trim() === "";
+  // Extranjero = lleva letras/números no ASCII (no basta con ⟩ o comillas tipográficas)
+  const siguienteExtranjero =
+    siguiente && (/(?![\x00-\x7F])[\p{L}\p{M}\p{N}]/u.test(siguiente) || /^[*-]/.test(siguiente));
+  // Romanizaciones coreanas ("리 li 金寳"): no son códigos
+  const trasHangul = /\p{Script=Hangul}/u.test(anterior);
+
+  if (PALABRAS_NO_IDIOMA.has(codigo)) {
+    // "my" es birmano solo si va seguido de escritura birmana u otra no latina (no china)
+    return codigo === "my" && siguienteExtranjero && !/\p{Script=Han}/u.test(siguiente) ? nombre : null;
+  }
+  if (codigo.includes("-")) return nombre;
+  if (siguienteExtranjero && !(trasHangul && !esIdiomaConocido(codigo))) return nombre;
+
+  // A partir de aquí solo códigos con nombre en español (no familias sueltas,
+  // que coinciden con palabras como "map", "sit" o "tai")
+  const esFamiliaSuelta = TABLA_IDIOMAS.familias[codigo] && !TABLA_IDIOMAS.es[codigo];
+  if (!esIdiomaConocido(codigo) || esFamiliaSuelta) return null;
+  if ((CONTEXTO_IDIOMA.has(anterior.toLowerCase()) && siguePalabra) || trasSeparador || inicioSegmento) return nombre;
+  if (terminaEnPuntuacion && LENGUAS_ENTRADA.has(codigo)) return nombre;
+  return null;
 }
 
 function limpiarEtimologiaWiktionary(raw) {
@@ -242,44 +329,46 @@ function limpiarEtimologiaWiktionary(raw) {
     .replace(/\[\[(?:[^|{}]*\|)*([^\]]+)\]\]/g, "$1")
     .replace(/\{\{([^{}]*)\}\}/g, (_, cuerpo) => renderPlantillaWiktionary(cuerpo));
 
+  // Resúmenes de etimón: "zh :inh sit-pro:*ku(w)" → "Heredado del protosinotibetano *ku(w)"
+  texto = texto.replace(
+    new RegExp(`(?:(?<![\\w-])(?:${TOKEN_CODIGO})\\s+)?:(inh|der|bor|cal|uder|ubor)\\s+((?:${TOKEN_CODIGO}:\\S+\\s*)+)`, "g"),
+    (todo, tipo, pares) => {
+      const VERBOS = { inh: "Heredado del", der: "Derivado del", uder: "Derivado del", bor: "Préstamo del", ubor: "Préstamo del", cal: "Calco del" };
+      const partes = pares.trim().split(/\s+/).map((par) => {
+        const [codigo, ...resto] = par.split(":");
+        const nombre = nombreIdioma(codigo);
+        return nombre ? `${marcarNombre(nombre)} ${resto.join(":")}` : null;
+      });
+      if (partes.some((x) => !x)) return todo;
+      return `${VERBOS[tipo]} ${partes.join(", ")} `;
+    }
+  );
+
   // Leyendas de imagen: "thumb|zh 女性 |" → "Ilustración (chino): 女性 |"
   texto = texto.replace(/(?:thumb|left|right)\|([^|]+)\|/gi, (_, leyenda) => {
-    const m = leyenda.trim().match(new RegExp(`^(${CODIGOS_RE})\\s+(.+)$`));
-    return m
-      ? `Ilustración (${nombreIdioma(m[1])}): ${m[2].trim()} |`
+    const m = leyenda.trim().match(new RegExp(`^(${TOKEN_CODIGO})\\s+(.+)$`));
+    return m && esIdiomaConocido(m[1])
+      ? `Ilustración (${marcarNombre(nombreIdioma(m[1]))}): ${m[2].trim()} |`
       : `Ilustración: ${leyenda.trim()} |`;
   });
 
   // Lista de idiomas al inicio de un segmento: "zh:,yue: |" → "Lenguas: chino, cantonés |"
   texto = texto.replace(
-    new RegExp(`(^|\\|)\\s*((?:(?:${CODIGOS_RE}):\\s*,?\\s*)+)(?=\\||$)`, "g"),
-    (_, inicio, lista) => {
-      const nombres = lista.split(/[:,\s]+/).filter(Boolean).map(nombreIdioma);
-      return `${inicio} Lenguas: ${nombres.join(", ")} `;
+    new RegExp(`(^|\\|)\\s*((?:${TOKEN_CODIGO}:\\s*,?\\s*)+)(?=\\||$)`, "g"),
+    (todo, inicio, lista) => {
+      const codigos = lista.split(/[:,\s]+/).filter(Boolean);
+      if (!codigos.every(esIdiomaConocido)) return todo;
+      return `${inicio} Lenguas: ${codigos.map((c) => marcarNombre(nombreIdioma(c))).join(", ")} `;
     }
   );
 
   // Etiquetas sueltas "zh: texto" → "chino: texto"
   texto = texto.replace(
-    new RegExp(`(?<![\\w-])(${CODIGOS_RE}):`, "g"),
-    (_, c) => `${nombreIdioma(c)}:`
+    new RegExp(`(?<![\\w-])(${TOKEN_CODIGO}):`, "g"),
+    (todo, c) => (esIdiomaConocido(c) && !PALABRAS_NO_IDIOMA.has(c) ? `${marcarNombre(nombreIdioma(c))}:` : todo)
   );
 
-  // Códigos dentro del texto. En cadenas como "zh sit-pro *naq" el primer
-  // código es la lengua de la entrada y el último la lengua de origen.
-  texto = texto.replace(
-    new RegExp(`(?<![\\w-])((?:${CODIGOS_RE})(?:\\s+(?:${CODIGOS_RE}))*)(?=\\s+(\\S))`, "g"),
-    (cadena, _c, siguiente, offset, total) => {
-      const codigos = cadena.split(/\s+/);
-      const anterior = (total.slice(0, offset).match(/(\S+)\s*$/) || [])[1] || "";
-      const esIdioma =
-        codigos.length > 1 ||
-        siguiente === "*" ||
-        /[^\x00-\x7F]/.test(siguiente) ||
-        CONTEXTO_IDIOMA.has(anterior.toLowerCase());
-      return esIdioma ? nombreIdioma(codigos[codigos.length - 1]) : cadena;
-    }
-  );
+  texto = quitarMarcas(traducirCodigosIdioma(texto));
 
   texto = texto
     .replace(/[ \t]{2,}/g, " ")
