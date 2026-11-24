@@ -456,6 +456,76 @@ function renderFiltrosCatalogo(incluirTaxonomia = true, gruposExtra = []) {
 `;
 }
 
+// Trazos del radical de Kangxi según su número (1-214): la tabla clásica está ordenada por trazos.
+const LIMITES_TRAZOS_RADICAL = [
+  [6, 1], [29, 2], [60, 3], [94, 4], [117, 5], [146, 6], [166, 7], [175, 8], [186, 9],
+  [194, 10], [200, 11], [204, 12], [208, 13], [210, 14], [211, 15], [213, 16], [214, 17],
+];
+function trazosDeRadical(num) {
+  const par = LIMITES_TRAZOS_RADICAL.find(([hasta]) => num <= hasta);
+  return par ? par[1] : 0;
+}
+
+// "Trazos totales (Wikt)" suele ser un número, pero a veces trae variantes regionales:
+// "8 (Mainland), 9 (Hong Kong, Japan, Taiwan)" o "11 or 10". Se prefiere la cifra de Japón.
+function numeroTrazos(raw) {
+  if (!raw) return 0;
+  const japon = String(raw).match(/(\d+)\s*\([^)]*Japan[^)]*\)/i);
+  const n = parseInt(japon ? japon[1] : (String(raw).match(/\d+/) || [""])[0], 10);
+  return isNaN(n) || n <= 0 ? 0 : n;
+}
+
+// A partir de este número de trazos todo se agrupa en un único chip ("30+").
+const TRAZOS_TOPE = 30;
+function etiquetaTrazos(n) {
+  if (!n) return "";
+  return n >= TRAZOS_TOPE ? `trazos-${TRAZOS_TOPE}mas` : `trazos-${n}`;
+}
+
+// Menús desplegables de búsqueda por radical (los 214 de Kangxi, agrupados por sus trazos)
+// y por número total de trazos. Cada menú es un grupo de chips más: catalogo.js los combina
+// con "o" dentro del menú y con "y" frente a JLPT/Taxonomía.
+// radicales: Map(num -> { glifo, significado, total }) con solo los radicales presentes.
+function renderMenusRadicalTrazos(radicales, trazosVistos) {
+  const filasRad = new Map();
+  Array.from(radicales.keys())
+    .sort((a, b) => a - b)
+    .forEach((num) => {
+      const t = trazosDeRadical(num);
+      if (!filasRad.has(t)) filasRad.set(t, []);
+      const r = radicales.get(num);
+      const titulo = `Radical ${num} · ${r.glifo}${r.significado ? " · " + r.significado : ""} (${r.total} kanji)`;
+      filasRad.get(t).push(
+        `<button type="button" class="btn-chip-filtro btn-chip-glifo" data-filtro="rad-${num}" title="${escaparHtml(titulo)}">${escaparHtml(r.glifo)}</button>`
+      );
+    });
+  const htmlRad = Array.from(filasRad.entries())
+    .map(([t, btns]) => `      <div class="fila-menu-filtro"><span class="num-trazos-fila" title="Radicales de ${t} trazo${t === 1 ? "" : "s"}">${t}</span>${btns.join("")}</div>`)
+    .join("\n");
+
+  const htmlTrazos = Array.from(trazosVistos)
+    .sort((a, b) => a - b)
+    .map((n) => {
+      const texto = n >= TRAZOS_TOPE ? `${TRAZOS_TOPE}+` : String(n);
+      return `<button type="button" class="btn-chip-filtro btn-chip-num" data-filtro="${etiquetaTrazos(n)}">${texto}</button>`;
+    })
+    .join("");
+
+  return `
+  <div class="grupo-filtro-chips grupo-filtro-desplegable">
+    <details class="menu-filtro-desplegable">
+      <summary><span class="etiqueta-filtro-chip">Radical:</span> <span class="seleccion-menu-filtro">elige uno o varios radicales</span></summary>
+${htmlRad}
+    </details>
+  </div>
+  <div class="grupo-filtro-chips grupo-filtro-desplegable">
+    <details class="menu-filtro-desplegable">
+      <summary><span class="etiqueta-filtro-chip">Trazos:</span> <span class="seleccion-menu-filtro">número total de trazos</span></summary>
+      <div class="fila-menu-filtro">${htmlTrazos}</div>
+    </details>
+  </div>`;
+}
+
 // Contenedor semántico puro: el script global se encargará de HanziWriter
 function seccionPracticadorKanji(caracter) {
   return `
@@ -644,6 +714,10 @@ async function main() {
 
   const componentesGlobales = new Set();
   const listaKanjisCatalogo = [];
+  // Radicales de Kangxi presentes (num -> { glifos: Map(glifo -> veces), total }) y trazos vistos,
+  // para construir los menús de búsqueda del catálogo.
+  const radicalesVistos = new Map();
+  const trazosVistos = new Set();
   const colecciones = {
     joyo: [],
     jinmeiyo: [],
@@ -672,6 +746,11 @@ async function main() {
     const esJoyo = esVerdadero(getValor(row, ["Jōyō Kanji (常用漢字)", "Joyo Kanji (常用漢字)", "Joyo", "Jōyō"]));
     const esJinmeiyo = esVerdadero(getValor(row, ["Jinmeiyō Kanji (人名用漢字)", "Jinmeiyo Kanji (人名用漢字)", "Jinmeiyo", "Jinmeiyō"]));
     const jlptKanji = getValor(row, ["JLPT"]);
+    const radicalGlifo = getValor(row, ["Radical (Wikt)", "Radical"]);
+    const numRadical = parseInt(getValor(row, ["Nº radical (Wikt)", "N° radical (Wikt)", "Nº radical", "Numero radical"]), 10);
+    const trazosTotales = numeroTrazos(getValor(row, ["Trazos totales (Wikt)", "Trazos totales", "Trazos"]));
+    const trazosExtra = getValor(row, ["Trazos extra (Wikt)", "Trazos extra"]);
+    const tieneRadical = numRadical >= 1 && numRadical <= 214;
 
     const tags = ["kanji"];
     if (esJoyo) tags.push("joyo");
@@ -681,12 +760,27 @@ async function main() {
     const tagJlpt = etiquetaJlpt(jlptKanji);
     if (tagJlpt) tags.push(tagJlpt);
 
+    // Radical y trazos solo se usan para filtrar el catálogo: no van al frontmatter para que
+    // Quartz no genere cientos de páginas de etiqueta (rad-75, trazos-12...).
+    const tagsFiltro = [...tags];
+    if (tieneRadical) {
+      tagsFiltro.push(`rad-${numRadical}`);
+      if (!radicalesVistos.has(numRadical)) radicalesVistos.set(numRadical, { glifos: new Map(), total: 0 });
+      const r = radicalesVistos.get(numRadical);
+      r.total++;
+      if (radicalGlifo) r.glifos.set(radicalGlifo, (r.glifos.get(radicalGlifo) || 0) + 1);
+    }
+    if (trazosTotales) {
+      tagsFiltro.push(etiquetaTrazos(trazosTotales));
+      trazosVistos.add(Math.min(trazosTotales, TRAZOS_TOPE));
+    }
+
     const itemData = {
       kanji,
       significado,
       onyomi,
       kunyomi,
-      tags: tags.join(" "),
+      tags: tagsFiltro.join(" "),
     };
 
     listaKanjisCatalogo.push(itemData);
@@ -730,6 +824,7 @@ ${jlptKanji && jlptKanji !== SIN_JLPT ? `**JLPT:** ${jlptKanji}\n` : ""}**On:** 
 **Kun:** ${kunyomi || "—"}
 **Kyūjitai:** ${kyujitaiLink}
 **Componentes:** ${compsLinks}
+${tieneRadical ? `**Radical:** ${radicalGlifo || "—"} (nº ${numRadical}${trazosExtra && trazosExtra !== "0" ? ` + ${trazosExtra} trazos` : ""})\n` : ""}${trazosTotales ? `**Trazos:** ${trazosTotales}\n` : ""}
 
 ---
 
@@ -742,6 +837,14 @@ ${seccionImagenes(kanji)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "kanji", `${nombreSeguro(kanji)}.md`), md);
   });
 
+  // Glifo representativo de cada radical: el más frecuente en la hoja (麥 frente a 麦, etc.).
+  const menuRadicales = new Map();
+  for (const [num, r] of radicalesVistos) {
+    const glifo = Array.from(r.glifos.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || String(num);
+    const significado = (mapaSignificados.get(glifo) || "").split(",")[0].trim();
+    menuRadicales.set(num, { glifo, significado, total: r.total });
+  }
+
   // Catálogo Kanji
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "kanji"),
@@ -751,7 +854,10 @@ ${seccionImagenes(kanji)}`;
     tipoGrid: "grid-catalogo-kanjis",
     renderItemMarkdown: (it) =>
       `<a href="/kanji/${nombreSeguro(it.kanji)}" class="card-catalogo-item" data-tags="${it.tags}"><div class="glifo-item-kanji">${it.kanji}</div></a>`,
-    filtrosHtml: renderFiltrosCatalogo(true),
+    filtrosHtml: renderFiltrosCatalogo(true).replace(
+      /\n<\/div>\n$/,
+      renderMenusRadicalTrazos(menuRadicales, trazosVistos) + "\n</div>\n"
+    ),
   });
 
   // 2. Componentes / Radicales

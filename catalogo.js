@@ -8,6 +8,8 @@
 // el universo completo y se pagina de nuevo de 50 en 50: la página 1 de "N1" es la
 // primera página de resultados N1, no la página 1 del catálogo completo.
 // Chips del mismo grupo se combinan con "o" y grupos distintos con "y".
+// Los menús desplegables (<details class="menu-filtro-desplegable">, p. ej. Radical y Trazos
+// en el catálogo de kanji) son grupos más: aquí solo se actualiza su resumen.
 // El estado vive en la URL (?f=jlpt-n1,gtipo-particle&p=2) para poder compartirlo y
 // volver atrás desde una ficha.
 (function () {
@@ -130,8 +132,32 @@
       if (desplazar) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    // Resumen de cada menú desplegable: los chips elegidos, o el texto de ayuda si no hay ninguno.
+    var menus = Array.prototype.slice.call(panel.querySelectorAll('.menu-filtro-desplegable')).map(function (d) {
+      var span = d.querySelector('.seleccion-menu-filtro');
+      return { details: d, span: span, ayuda: span ? span.textContent : '' };
+    });
+    function actualizarMenus() {
+      menus.forEach(function (m) {
+        var elegidos = Array.prototype.filter.call(m.details.querySelectorAll('.btn-chip-filtro'), function (b) {
+          return activos.indexOf(b.dataset.filtro) !== -1;
+        }).map(function (b) { return b.textContent; });
+        if (m.span) {
+          m.span.textContent = elegidos.length ? elegidos.join(' · ') : m.ayuda;
+          m.span.classList.toggle('con-seleccion', elegidos.length > 0);
+        }
+      });
+    }
+    // Al llegar con filtros en la URL, abrir los menús que tienen algo elegido.
+    menus.forEach(function (m) {
+      if (Array.prototype.some.call(m.details.querySelectorAll('.btn-chip-filtro'), function (b) {
+        return activos.indexOf(b.dataset.filtro) !== -1;
+      })) m.details.open = true;
+    });
+
     function pintar() {
       botones.forEach(function (b) { b.classList.toggle('activo', activos.indexOf(b.dataset.filtro) !== -1); });
+      actualizarMenus();
       if (activos.length === 0) { restaurar(); return; }
 
       var mia = ++peticion;
