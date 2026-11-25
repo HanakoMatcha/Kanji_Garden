@@ -750,6 +750,8 @@ async function main() {
     const numRadical = parseInt(getValor(row, ["Nº radical (Wikt)", "N° radical (Wikt)", "Nº radical", "Numero radical"]), 10);
     const trazosTotales = numeroTrazos(getValor(row, ["Trazos totales (Wikt)", "Trazos totales", "Trazos"]));
     const trazosExtra = getValor(row, ["Trazos extra (Wikt)", "Trazos extra"]);
+    const composicionGlifo = getValor(row, ["Composición glifo (Wikt)", "Composicion glifo (Wikt)", "Composición glifo"])
+      .replace(/—\s*psc\s*$/i, "— compuesto fonosemántico");
     const tieneRadical = numRadical >= 1 && numRadical <= 214;
 
     const tags = ["kanji"];
@@ -819,12 +821,17 @@ ${tags.map((t) => `  - ${t}`).join("\n")}
 # ${kanji}
 > **${significado}**
 
-**Clasificación:** ${textoClasificacion}
-${jlptKanji && jlptKanji !== SIN_JLPT ? `**JLPT:** ${jlptKanji}\n` : ""}**On:** ${onyomi || "—"}
-**Kun:** ${kunyomi || "—"}
-**Kyūjitai:** ${kyujitaiLink}
-**Componentes:** ${compsLinks}
-${tieneRadical ? `**Radical:** ${radicalGlifo || "—"} (nº ${numRadical}${trazosExtra && trazosExtra !== "0" ? ` + ${trazosExtra} trazos` : ""})\n` : ""}${trazosTotales ? `**Trazos:** ${trazosTotales}\n` : ""}
+${[
+  `**Clasificación:** ${textoClasificacion}`,
+  jlptKanji && jlptKanji !== SIN_JLPT ? `**JLPT:** ${jlptKanji}` : "",
+  `**On:** ${onyomi || "—"}`,
+  `**Kun:** ${kunyomi || "—"}`,
+  `**Kyūjitai:** ${kyujitaiLink}`,
+  `**Componentes:** ${compsLinks}`,
+  `**Nº radical:** ${tieneRadical ? `${numRadical}${radicalGlifo ? ` (${radicalGlifo})` : ""}${trazosExtra && trazosExtra !== "0" ? ` + ${trazosExtra} trazo${trazosExtra === "1" ? "" : "s"}` : ""}` : "—"}`,
+  `**Trazos totales:** ${trazosTotales || "—"}`,
+  `**Composición del glifo:** ${composicionGlifo || "—"}`,
+].filter(Boolean).join("\n\n")}
 
 ---
 
