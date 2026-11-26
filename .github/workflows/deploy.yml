@@ -817,8 +817,25 @@ jobs:
             if (fs.existsSync(p)) {
               console.log("Optimizando contentIndex.json...");
               const data = JSON.parse(fs.readFileSync(p, "utf8"));
+              // El texto completo de las páginas pesa demasiado, así que se borra.
+              // En vocabulario se deja un texto corto (lectura, ES y EN) generado
+              // por build_test.js para poder buscar por la traducción.
+              const busqueda = fs.existsSync("busqueda_vocab.json")
+                ? JSON.parse(fs.readFileSync("busqueda_vocab.json", "utf8"))
+                : {};
+              let conBusqueda = 0;
               for (const slug in data) {
-                delete data[slug].content;
+                const ruta = String(data[slug].filePath || "").replace(/^(\.\/)?content\//, "").normalize("NFC");
+                if (busqueda[ruta]) {
+                  data[slug].content = busqueda[ruta];
+                  conBusqueda++;
+                } else {
+                  delete data[slug].content;
+                }
+              }
+              console.log("Páginas con texto de búsqueda: " + conBusqueda + " de " + Object.keys(busqueda).length);
+              if (Object.keys(busqueda).length > 0 && conBusqueda === 0) {
+                console.log("::warning::No se pudo asociar busqueda_vocab.json con ninguna página del índice");
               }
               // El plugin del graph toma el slug de la URL sin la "/" final: en
               // /kanji/ busca "kanji", pero el índice guarda "kanji/index" (que él

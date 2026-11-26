@@ -34,6 +34,8 @@ const ORDEN_IMG = ["origin", "tensho", "gyosho", "sousho", "kso_images"];
 const CONTENT_DIR = "./content";
 // JSON con todas las entradas de cada catálogo filtrable; el workflow lo copia a public/static/catalogos.
 const CATALOGOS_DIR = "./catalogos";
+// Texto de búsqueda de cada página de vocabulario; el workflow lo mete en contentIndex.json.
+const BUSQUEDA_VOCAB = "./busqueda_vocab.json";
 
 ["vocab", "kanji", "componentes", "colecciones", "gramatica"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
@@ -46,6 +48,15 @@ function escribirSiCambio(ruta, contenidoNuevo) {
     if (contenidoViejo === contenidoNuevo) return;
   }
   fs.writeFileSync(ruta, contenidoNuevo);
+}
+
+// Une los textos en una línea y añade una copia sin tildes, porque el buscador
+// no las ignora: así "reduccion" también encuentra "reducción".
+function textoBusqueda(partes) {
+  const texto = partes.filter(Boolean).join(" · ").replace(/\s+/g, " ").trim();
+  const quitarTildes = (p) => p.normalize("NFD").replace(/[\u0300-\u036f]/g, "").normalize("NFC");
+  const extra = [...new Set(texto.split(/[\s,;:()·、]+/).filter((p) => quitarTildes(p) !== p).map(quitarTildes))];
+  return extra.length > 0 ? `${texto} · ${extra.join(" ")}` : texto;
 }
 
 function nombreSeguro(s) {
@@ -908,6 +919,10 @@ ${seccionImagenes(comp)}`;
   });
 
   const listaVocabCatalogo = [];
+  // Texto de búsqueda por página de vocabulario: el workflow lo pone como "content"
+  // en contentIndex.json para que el buscador encuentre las palabras por su
+  // traducción (ES/EN) y su lectura, no solo por el título en japonés.
+  const busquedaVocab = {};
   vocabRecords.forEach((row) => {
     const palabra = getValor(row, ["日本語", "Palabra", "Vocabulario"]);
     if (!palabra) return;
@@ -974,7 +989,10 @@ ${bloqueTraducciones}
 **JLPT:** ${jlpt}
 `;
     escribirSiCambio(path.join(CONTENT_DIR, "vocab", `${nombreSeguro(palabra)}.md`), md);
+    busquedaVocab[`vocab/${nombreSeguro(palabra)}.md`] = textoBusqueda([kana, es, en]);
   });
+  fs.writeFileSync(BUSQUEDA_VOCAB, JSON.stringify(busquedaVocab));
+  console.log(`Texto de búsqueda para ${Object.keys(busquedaVocab).length} palabras en ${BUSQUEDA_VOCAB}`);
 
   generarCatalogoPaginado({
     directorioDestino: path.join(CONTENT_DIR, "vocab"),

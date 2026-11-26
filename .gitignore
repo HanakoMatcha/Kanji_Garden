@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 # JSON de catálogos generado por build_test.js
 catalogos/
+
+# Texto de búsqueda de vocabulario generado por build_test.js
+busqueda_vocab.json
