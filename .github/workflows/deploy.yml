@@ -43,7 +43,7 @@ jobs:
               curl -fsSL --retry 3 "$u" | sha256sum
             done | sha256sum | cut -d' ' -f1) || huella="error-${{ github.run_id }}"
           fi
-          codigo="${{ hashFiles('build_test.js', 'idiomas_wiktionary.json', 'practicador.js', 'catalogo.js', 'visitas.js', '.github/workflows/deploy.yml', 'quartz.layout.ts', 'quartz.config.ts') }}"
+          codigo="${{ hashFiles('build_test.js', 'idiomas_wiktionary.json', 'practicador.js', 'catalogo.js', 'visitas.js', '.github/workflows/deploy.yml') }}"
           echo "clave=publicado-codigo-${codigo}-hojas-${huella}" >> "$GITHUB_OUTPUT"
 
       - name: Buscar marca de publicación previa
@@ -86,7 +86,7 @@ jobs:
           if [ ! -f "package.json" ]; then
             echo "package.json no detectado. Obteniendo motor de Quartz ($QUARTZ_REF)..."
             mkdir -p /tmp/mis-archivos
-            for f in quartz.config.ts quartz.layout.ts custom.scss build_test.js favicon.png; do
+            for f in build_test.js favicon.png; do
               if [ -f "$f" ]; then
                 cp "$f" /tmp/mis-archivos/
               fi
