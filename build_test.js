@@ -67,9 +67,12 @@ function yamlStr(s) {
   return String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
+// Kanji en cualquier bloque CJK: Extensión A, bloque principal completo,
+// compatibilidad y Extensiones B–I (planos 2 y 3). Deja fuera 々, 〇 y los
+// radicales sueltos (⺀–⿕), que no tienen ficha propia.
 function extraerKanjis(texto) {
   if (!texto) return [];
-  const regex = /[一-龯㐀-䶿\u{20000}-\u{2A6DF}]/gu;
+  const regex = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}\u{30000}-\u{323AF}]/gu;
   return Array.from(new Set(texto.match(regex) || []));
 }
 
