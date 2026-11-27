@@ -156,7 +156,7 @@
   <p class="lema">Escribe una frase en japonés y pulsa Intro. Se separa en bloques, partículas, gramática, kanji y componentes.</p>
 
   <form class="barra" id="form" autocomplete="off">
-    <input id="entrada" class="jp" name="t" type="text" lang="ja" maxlength="300" placeholder="寿司を食べてから、家に帰りたいと思います。" aria-label="Frase en japonés">
+    <input id="entrada" class="jp" name="t" type="text" lang="ja" maxlength="300" placeholder="吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。" aria-label="Frase en japonés">
     <button id="btn-analizar" type="submit">Analizar</button>
   </form>
   <div class="estado" id="estado" role="status"></div>
@@ -371,12 +371,16 @@
       m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "たい" ? 1 : 0; } },
     { n: "〜なかった", s: "negación en pasado", busca: ["なかった"],
       m: function (t, i) { return t[i + 1] && P(t[i]) === "助動詞" && B(t[i]) === "ない" && B(t[i + 1]) === "た" ? 2 : 0; } },
+    { n: "〜ぬ", s: "negación clásica o literaria (= ない)", busca: ["ぬ", "ず", "ん"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && (B(t[i]) === "ぬ" || B(t[i]) === "ん") ? 1 : 0; } },
     { n: "〜ない", s: "negación", busca: ["ない"],
-      m: function (t, i) { return P(t[i]) === "助動詞" && (B(t[i]) === "ない" || B(t[i]) === "ぬ" || B(t[i]) === "ん") ? 1 : 0; } },
+      m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "ない" ? 1 : 0; } },
     { n: "〜たら", s: "si / cuando (condicional)", busca: ["たら"],
       m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "た" && F(t[i]) === "仮定形" ? 1 : 0; } },
     { n: "〜た", s: "pasado / acción completada", busca: ["た"],
       m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "た" ? 1 : 0; } },
+    { n: "である", s: "cópula literaria o escrita: es", busca: ["である", "であります"],
+      m: function (t, i) { return t[i + 1] && P(t[i]) === "助動詞" && B(t[i]) === "だ" && S(t[i]) === "で" && B(t[i + 1]) === "ある" ? 2 : 0; } },
     { n: "です", s: "cópula cortés: es, está", busca: ["です"],
       m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "です" ? 1 : 0; } },
     { n: "だ", s: "cópula llana: es, está", busca: ["だ"],
@@ -541,7 +545,8 @@
     g.toks.forEach(function (t, i) {
       var r = romaji(lectura(t)), prev = g.toks[i - 1];
       if (i > 0 && ((P(t) === "助詞" && !esTe(t) && !/^(ば|たり|だり)$/.test(S(t)) && !(P(prev) === "助詞" && !esTe(prev))) ||
-          (P(prev) === "助詞" && !esTe(prev) && P(t) !== "助詞") || (P(prev) === "名詞" && P(t) === "動詞" && D(t) === "自立"))) out += " ";
+          (P(prev) === "助詞" && !esTe(prev) && P(t) !== "助詞") || (P(prev) === "名詞" && P(t) === "動詞" && D(t) === "自立") ||
+          (P(prev) === "名詞" && P(t) === "助動詞") || (S(prev) === "で" && P(prev) === "助動詞" && B(t) === "ある"))) out += " ";
       out += r;
     });
     return out.replace(/\u0001(\s?)([bcdfghjkmprstvwz])/g, function (m, esp, c) { return (c === "c" ? "t" : c) + esp + c; }).replace(/\u0001/g, "");
@@ -804,7 +809,7 @@
   });
   $("volver").href = BASE + "/";
 
-  var EJEMPLOS = ["寿司を食べてから、家に帰りたいと思います。", "日本語を勉強しています。", "雨が降っていたので、行かなければならなかった。", "この本は読みやすいです。", "明日は友達と映画を見に行きましょう。"];
+  var EJEMPLOS = ["吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。", "日本語を勉強しています。", "雨が降っていたので、行かなければならなかった。", "この本は読みやすいです。", "明日は友達と映画を見に行きましょう。"];
   $("ejemplos").innerHTML = EJEMPLOS.map(function (e) { return '<button type="button">' + esc(e) + "</button>"; }).join("");
   $("ejemplos").addEventListener("click", function (ev) {
     var b = ev.target.closest("button"); if (!b) return;

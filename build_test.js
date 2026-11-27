@@ -1261,7 +1261,7 @@ Base de datos viva e interconectada a partir de Google Sheets.
 <form class="barra-analizador" action="./analizador/" method="get" data-router-ignore>
   <label class="titulo-barra-analizador" for="entrada-analizador">Analizador de frases · 文の解剖</label>
   <div class="fila-barra-analizador">
-    <input id="entrada-analizador" name="t" type="text" lang="ja" autocomplete="off" placeholder="寿司を食べてから、家に帰りたいと思います。" required>
+    <input id="entrada-analizador" name="t" type="text" lang="ja" autocomplete="off" placeholder="吾輩は猫である。名前はまだ無い。どこで生れたかとんと見当がつかぬ。" required>
     <button type="submit">Analizar</button>
   </div>
   <div class="ayuda-barra-analizador">Escribe una frase en japonés y pulsa Intro: se separa en palabras, partículas, gramática, kanji y componentes.</div>
