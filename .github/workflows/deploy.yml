@@ -43,7 +43,7 @@ jobs:
               curl -fsSL --retry 3 "$u" | sha256sum
             done | sha256sum | cut -d' ' -f1) || huella="error-${{ github.run_id }}"
           fi
-          codigo="${{ hashFiles('build_test.js', 'idiomas_wiktionary.json', 'practicador.js', 'catalogo.js', 'visitas.js', '.github/workflows/deploy.yml') }}"
+          codigo="${{ hashFiles('build_test.js', 'idiomas_wiktionary.json', 'practicador.js', 'catalogo.js', 'visitas.js', 'analizador.html', '.github/workflows/deploy.yml') }}"
           echo "clave=publicado-codigo-${codigo}-hojas-${huella}" >> "$GITHUB_OUTPUT"
 
       - name: Buscar marca de publicación previa
@@ -116,12 +116,13 @@ jobs:
       - name: Instalar dependencias del proyecto
         run: |
           npm ci --prefer-offline --no-audit --no-fund || npm install --no-audit --no-fund
-          npm install --no-save --no-audit --no-fund csv-parse
+          npm install --no-save --no-audit --no-fund csv-parse kuromoji@0.1.2
 
       - name: Limpiar contenido previo para modo test
         run: |
           rm -rf content/*
           rm -rf catalogos
+          rm -f analizador_datos.json
           rm -rf public/*
           rm -rf .quartz-cache
 
@@ -740,6 +741,52 @@ jobs:
             box-shadow: 0 0 10px var(--secondary);
           }
 
+          /* =========================================================
+             BARRA DEL ANALIZADOR DE FRASES (PORTADA)
+             ========================================================= */
+          .barra-analizador {
+            margin: 1.6rem 0 0.5rem 0;
+            padding: 14px 16px;
+            border: 1px solid var(--lightgray);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+          }
+          .titulo-barra-analizador {
+            display: block;
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--gray);
+            margin-bottom: 8px;
+          }
+          .fila-barra-analizador { display: flex; gap: 8px; }
+          .fila-barra-analizador input {
+            flex: 1;
+            min-width: 0;
+            font-size: 1.15rem;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--lightgray);
+            background: var(--light);
+            color: var(--dark);
+            outline: none;
+          }
+          .fila-barra-analizador input:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 10px rgba(93, 255, 154, 0.3);
+          }
+          .fila-barra-analizador button {
+            padding: 0 18px;
+            border-radius: 10px;
+            border: 1px solid var(--secondary);
+            background: var(--secondary);
+            color: var(--light);
+            font-weight: 700;
+            cursor: pointer;
+          }
+          .ayuda-barra-analizador { font-size: 0.8rem; color: var(--gray); margin-top: 6px; }
+
           .article-title {
             font-size: 4.5rem !important;
             line-height: 1.1 !important;
@@ -775,6 +822,22 @@ jobs:
             cp catalogos/*.json public/static/catalogos/
             ls -la public/static/catalogos
           fi
+
+      - name: Publicar el analizador de frases
+        run: |
+          # Página independiente de Quartz (sandbox): /analizador/
+          mkdir -p public/analizador public/static/kuromoji
+          cp analizador.html public/analizador/index.html
+          # Datos del jardín para enlazar kanji, componentes, vocabulario y gramática.
+          if [ -f analizador_datos.json ]; then
+            cp analizador_datos.json public/static/analizador.json
+          else
+            echo "::warning::No se generó analizador_datos.json: el analizador funcionará sin enlaces al jardín"
+          fi
+          # Analizador morfológico y su diccionario (IPADIC), servidos desde el propio sitio.
+          cp node_modules/kuromoji/build/kuromoji.js public/static/kuromoji/
+          cp -r node_modules/kuromoji/dict public/static/kuromoji/dict
+          du -sh public/static/kuromoji public/static/analizador.json 2>/dev/null || true
 
       - name: Inyectar practicador, filtros de catálogo y contador de visitas en el head de todas las páginas
         run: |

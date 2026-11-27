@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analizador de frases · Kanji Garden</title>
+<meta name="description" content="Desmenuza una frase japonesa en palabras, partículas, gramática, kanji y componentes.">
+<script>
+  // Mismo tema que el jardín: Quartz guarda la elección en localStorage("theme").
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem("theme"); } catch (e) {}
+    if (t !== "dark" && t !== "light") t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+<style>
+  /* Paleta del jardín (deploy.yml) + tres tonos extra para el gráfico. */
+  :root, :root[data-theme="light"] {
+    --light: #f4ecd8; --lightgray: #e4d8bd; --gray: #8f7f62; --darkgray: #5c4636; --dark: #3e2a1e;
+    --secondary: #557a44; --tertiary: #c2477a; --panel: rgba(255, 255, 255, 0.45);
+    --c-gram: #557a44; --c-part: #c2477a; --c-lex: #a8641a; --c-kanji: #2f6f8f; --c-comp: #7a5aa6; --c-kana: #8f7f62;
+    --banda: rgba(62, 42, 30, 0.035); --sombra: 0 1px 3px rgba(62, 42, 30, 0.12);
+  }
+  :root[data-theme="dark"] {
+    --light: #1b1028; --lightgray: #2e1c42; --gray: #9d8bb8; --darkgray: #d8cfe8; --dark: #f5f0fb;
+    --secondary: #5dff9a; --tertiary: #ff4fd8; --panel: rgba(255, 255, 255, 0.03);
+    --c-gram: #5dff9a; --c-part: #ff4fd8; --c-lex: #ffc857; --c-kanji: #6fd3ff; --c-comp: #b69cff; --c-kana: #9d8bb8;
+    --banda: rgba(255, 255, 255, 0.025); --sombra: 0 0 0 transparent;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--light); color: var(--dark);
+    font-family: "Source Sans Pro", system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", "IPAPGothic", sans-serif;
+    line-height: 1.5;
+  }
+  a { color: inherit; }
+  .jp { font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", "IPAPGothic", "IPAGothic", sans-serif; }
+  .envoltorio { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+
+  header.cabecera { border-bottom: 1px solid var(--lightgray); }
+  header.cabecera .envoltorio { display: flex; align-items: center; gap: 12px; height: 56px; }
+  .volver { text-decoration: none; color: var(--gray); font-size: 0.9rem; white-space: nowrap; }
+  .volver:hover { color: var(--secondary); }
+  .marca { font-weight: 700; font-size: 1.05rem; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .marca span { color: var(--secondary); }
+  .btn-tema {
+    border: 1px solid var(--lightgray); background: transparent; color: var(--darkgray);
+    border-radius: 8px; width: 36px; height: 32px; cursor: pointer; font-size: 1rem;
+  }
+
+  h1 { font-size: 1.9rem; margin: 1.6rem 0 0.2rem; }
+  h2 { font-size: 1.05rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--gray); margin: 2rem 0 0.8rem; }
+  .lema { color: var(--darkgray); margin: 0 0 1.2rem; }
+
+  form.barra { display: flex; gap: 8px; margin: 1rem 0 0.4rem; }
+  form.barra input {
+    flex: 1; min-width: 0; font-size: 1.2rem; padding: 12px 14px; border-radius: 12px;
+    border: 1px solid var(--lightgray); background: var(--panel); color: var(--dark); outline: none;
+  }
+  form.barra input:focus { border-color: var(--secondary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 25%, transparent); }
+  form.barra button {
+    padding: 0 20px; border-radius: 12px; border: 1px solid var(--secondary);
+    background: var(--secondary); color: var(--light); font-weight: 700; font-size: 1rem; cursor: pointer;
+  }
+  form.barra button:disabled { opacity: 0.5; cursor: progress; }
+  .estado { min-height: 1.4rem; font-size: 0.85rem; color: var(--gray); }
+  .estado.error { color: var(--tertiary); }
+
+  .ejemplos { display: flex; flex-wrap: wrap; gap: 8px; margin: 0.6rem 0 0; }
+  .ejemplos button {
+    border: 1px dashed var(--gray); background: transparent; color: var(--darkgray);
+    padding: 6px 12px; border-radius: 16px; font-size: 0.95rem; cursor: pointer;
+  }
+  .ejemplos button:hover { border-color: var(--secondary); color: var(--secondary); }
+
+  /* Fila de bloques de la frase */
+  .bloques { display: flex; flex-wrap: wrap; gap: 6px 4px; align-items: flex-end; }
+  .bloque {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 10px 5px; border-radius: 10px; border: 1px solid var(--lightgray);
+    border-bottom: 3px solid var(--color, var(--gray)); background: var(--panel); cursor: pointer;
+    font: inherit; color: inherit; box-shadow: var(--sombra);
+  }
+  .bloque:hover, .bloque.activo { border-color: var(--color); }
+  .bloque.activo { background: color-mix(in srgb, var(--color) 14%, transparent); }
+  .bloque .superficie { font-size: 1.55rem; line-height: 1.3; }
+  .bloque .romaji { font-size: 0.75rem; color: var(--gray); letter-spacing: 0.3px; }
+  .bloque .tipo { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--color); font-weight: 700; }
+  .bloque.punt { border: none; background: transparent; box-shadow: none; cursor: default; padding: 6px 2px; }
+  rt { font-size: 0.5em; color: var(--gray); }
+
+  /* Gráfico */
+  .barra-grafico { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 8px; font-size: 0.82rem; color: var(--darkgray); }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .barra-grafico label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; margin-left: auto; }
+  .lienzo {
+    overflow-x: auto; overflow-y: hidden; border: 1px solid var(--lightgray); border-radius: 12px;
+    background: var(--panel); -webkit-overflow-scrolling: touch;
+  }
+  .lienzo svg { display: block; }
+  .lienzo .nodo rect { stroke-width: 1.5; }
+  .lienzo .nodo a { cursor: pointer; }
+  .lienzo .nodo a:hover rect, .lienzo .nodo a:focus rect { stroke-width: 2.5; filter: drop-shadow(0 0 4px var(--c)); }
+  .lienzo .arista { fill: none; stroke: var(--gray); stroke-opacity: 0.45; stroke-width: 1.3; }
+  .lienzo.foco .nodo, .lienzo.foco .arista { opacity: 0.18; transition: opacity 0.2s; }
+  .lienzo.foco .sel { opacity: 1; }
+  .lienzo .etiqueta-fila { font-size: 11px; fill: var(--gray); letter-spacing: 1px; text-transform: uppercase; }
+  .lienzo .banda { fill: var(--banda); }
+  .pista { font-size: 0.78rem; color: var(--gray); margin-top: 6px; }
+
+  /* Tarjetas de detalle */
+  .detalle { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+  .tarjeta {
+    border: 1px solid var(--lightgray); border-left: 4px solid var(--color); border-radius: 10px;
+    padding: 12px 14px; background: var(--panel); box-shadow: var(--sombra); scroll-margin-top: 16px;
+  }
+  .tarjeta.activo { border-color: var(--color); }
+  .tarjeta .cab { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .tarjeta .cab .superficie { font-size: 1.6rem; }
+  .tarjeta .cab .romaji { color: var(--gray); font-size: 0.85rem; }
+  .tarjeta .cab .tipo { margin-left: auto; color: var(--color); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
+  .tarjeta ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+  .tarjeta li { display: flex; gap: 8px; align-items: baseline; }
+  .tarjeta li .pieza { min-width: 3.2em; white-space: nowrap; font-size: 1.05rem; }
+  .tarjeta li .desc { color: var(--darkgray); }
+  .tarjeta li.gram .pieza { color: var(--c-gram); font-weight: 700; }
+  .tarjeta li.kan .pieza { color: var(--c-kanji); }
+  .tarjeta a.enlace { color: var(--secondary); text-decoration: none; border-bottom: 1px dotted currentColor; }
+  .tarjeta a.enlace:hover { border-bottom-style: solid; }
+  .etq { font-size: 0.7rem; border: 1px solid var(--lightgray); border-radius: 6px; padding: 0 5px; color: var(--gray); white-space: nowrap; }
+
+  .aviso { font-size: 0.8rem; color: var(--gray); margin: 2rem 0 3rem; border-top: 1px solid var(--lightgray); padding-top: 12px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 600px) {
+    h1 { font-size: 1.5rem; }
+    form.barra button { padding: 0 14px; }
+    .bloque .superficie { font-size: 1.3rem; }
+    .barra-grafico label { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<header class="cabecera">
+  <div class="envoltorio">
+    <a class="volver" id="volver" href="../">← Jardín</a>
+    <div class="marca">Kanji Garden · <span>Analizador</span></div>
+    <button class="btn-tema" id="btn-tema" type="button" title="Cambiar tema" aria-label="Cambiar tema">◐</button>
+  </div>
+</header>
+
+<main class="envoltorio">
+  <h1 class="jp">文の解剖 <span style="font-weight:400;color:var(--gray);font-size:0.6em">Analizador de frases</span></h1>
+  <p class="lema">Escribe una frase en japonés y pulsa Intro. Se separa en bloques, partículas, gramática, kanji y componentes.</p>
+
+  <form class="barra" id="form" autocomplete="off">
+    <input id="entrada" class="jp" name="t" type="text" lang="ja" maxlength="300" placeholder="寿司を食べてから、家に帰りたいと思います。" aria-label="Frase en japonés">
+    <button id="btn-analizar" type="submit">Analizar</button>
+  </form>
+  <div class="estado" id="estado" role="status"></div>
+
+  <section id="inicio">
+    <div class="ejemplos jp" id="ejemplos"></div>
+  </section>
+
+  <section id="resultado" hidden>
+    <h2>Frase</h2>
+    <div class="bloques jp" id="bloques"></div>
+
+    <h2>Desglose</h2>
+    <div class="barra-grafico">
+      <div class="leyenda">
+        <span><i style="background:var(--c-lex)"></i>Palabra</span>
+        <span><i style="background:var(--c-part)"></i>Partícula</span>
+        <span><i style="background:var(--c-gram)"></i>Gramática</span>
+        <span><i style="background:var(--c-kanji)"></i>Kanji</span>
+        <span><i style="background:var(--c-kana)"></i>Kana</span>
+        <span><i style="background:var(--c-comp)"></i>Componente</span>
+      </div>
+      <label><input type="checkbox" id="ver-componentes" checked> Mostrar componentes</label>
+    </div>
+    <div class="lienzo" id="lienzo"></div>
+    <div class="pista">Pulsa un bloque de la frase para resaltarlo. Los nodos con borde grueso enlazan a su ficha del jardín.</div>
+
+    <h2>Detalle por bloque</h2>
+    <div class="detalle" id="detalle"></div>
+  </section>
+
+  <p class="aviso">El análisis lo hace <a href="https://github.com/takuyaa/kuromoji.js" target="_blank" rel="noopener">kuromoji</a> con el diccionario IPADIC, directamente en tu navegador. Es automático: en frases ambiguas puede cortar o leer alguna palabra de otra forma.</p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ------------------------------------------------------------------ utilidades
+  var BASE = location.pathname.indexOf("/Kanji_Garden") === 0 ? "/Kanji_Garden" : "";
+  var $ = function (id) { return document.getElementById(id); };
+  var DATOS = { k: {}, c: {}, v: {}, g: [] };
+  var GRAM_IDX = {};
+  var tokenizador = null;
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  // Igual que nombreSeguro() en build_test.js.
+  function nombreSeguro(s) { return String(s).normalize("NFC").replace(/[\/\\?%*:|"<>#&\s]/g, "_"); }
+  var RE_KANJI = /[㐀-䶿一-鿿豈-﫿\u{20000}-\u{2FA1F}\u{30000}-\u{323AF}々]/u;
+  function esKanji(ch) { return RE_KANJI.test(ch); }
+  function aHira(s) {
+    return String(s || "").replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); });
+  }
+
+  var ROMA = {
+    "あ":"a","い":"i","う":"u","え":"e","お":"o","か":"ka","き":"ki","く":"ku","け":"ke","こ":"ko",
+    "さ":"sa","し":"shi","す":"su","せ":"se","そ":"so","た":"ta","ち":"chi","つ":"tsu","て":"te","と":"to",
+    "な":"na","に":"ni","ぬ":"nu","ね":"ne","の":"no","は":"ha","ひ":"hi","ふ":"fu","へ":"he","ほ":"ho",
+    "ま":"ma","み":"mi","む":"mu","め":"me","も":"mo","や":"ya","ゆ":"yu","よ":"yo",
+    "ら":"ra","り":"ri","る":"ru","れ":"re","ろ":"ro","わ":"wa","ゐ":"i","ゑ":"e","を":"wo","ん":"n",
+    "が":"ga","ぎ":"gi","ぐ":"gu","げ":"ge","ご":"go","ざ":"za","じ":"ji","ず":"zu","ぜ":"ze","ぞ":"zo",
+    "だ":"da","ぢ":"ji","づ":"zu","で":"de","ど":"do","ば":"ba","び":"bi","ぶ":"bu","べ":"be","ぼ":"bo",
+    "ぱ":"pa","ぴ":"pi","ぷ":"pu","ぺ":"pe","ぽ":"po","ゔ":"vu",
+    "ぁ":"a","ぃ":"i","ぅ":"u","ぇ":"e","ぉ":"o","ゃ":"ya","ゅ":"yu","ょ":"yo","ゎ":"wa"
+  };
+  var DIGRAFO = { "し":"sh","ち":"ch","じ":"j","ぢ":"j" };
+  function romaji(kana) {
+    var h = aHira(kana), out = "", i, c, n, r;
+    for (i = 0; i < h.length; i++) {
+      c = h[i]; n = h[i + 1];
+      if (c === "っ") {
+        if (i === h.length - 1) { out += "\u0001"; continue; }
+        var sig = romaji(h.slice(i + 1, i + 3)).charAt(0);
+        out += sig && /[bcdfghjkmprstvwz]/.test(sig) ? (sig === "c" ? "t" : sig) : "";
+        continue;
+      }
+      if (c === "ー") { out += out.slice(-1).match(/[aeiou]/) ? out.slice(-1) : "-"; continue; }
+      if (n && "ゃゅょ".indexOf(n) >= 0 && ROMA[c] && "ぁぃぅぇぉゃゅょ".indexOf(c) < 0) {
+        var v = ROMA[n].slice(1);
+        out += (DIGRAFO[c] || ROMA[c].slice(0, -1) + "y") + v;
+        i++; continue;
+      }
+      if (n && "ぁぃぅぇぉ".indexOf(n) >= 0 && ROMA[c]) { out += ROMA[c].slice(0, -1) + ROMA[n]; i++; continue; }
+      r = ROMA[c];
+      if (r == null) { out += c; continue; }
+      if (c === "ん" && n && /^[aiueoy]/.test(ROMA[n] || "")) r = "n'";
+      out += r;
+    }
+    return out;
+  }
+
+  // Furigana: quita del ruby la kana que coincide al principio y al final (okurigana).
+  function furigana(sup, lectura) {
+    if (!lectura || !RE_KANJI.test(sup)) return esc(sup);
+    var hs = aHira(sup), hl = aHira(lectura), a = 0, b = 0;
+    while (a < hs.length && a < hl.length && hs[a] === hl[a] && !esKanji(sup[a])) a++;
+    while (b < hs.length - a && b < hl.length - a && hs[hs.length - 1 - b] === hl[hl.length - 1 - b] && !esKanji(sup[sup.length - 1 - b])) b++;
+    var medio = sup.slice(a, sup.length - b), rt = hl.slice(a, hl.length - b);
+    if (!rt || rt === aHira(medio)) return esc(sup);
+    return esc(sup.slice(0, a)) + "<ruby>" + esc(medio) + "<rt>" + esc(rt) + "</rt></ruby>" + esc(sup.slice(sup.length - b));
+  }
+
+  // ------------------------------------------------------------------ morfología
+  var S = function (t) { return t.surface_form; };
+  var B = function (t) { return t.basic_form && t.basic_form !== "*" ? t.basic_form : t.surface_form; };
+  var P = function (t) { return t.pos; };
+  var D = function (t) { return t.pos_detail_1; };
+  var F = function (t) { return t.conjugated_form; };
+  function esTe(t) { return t && P(t) === "助詞" && D(t) === "接続助詞" && (S(t) === "て" || S(t) === "で"); }
+  function lectura(t) {
+    if (P(t) === "助詞" && (S(t) === "は" || S(t) === "へ") && t.pronunciation) return aHira(t.pronunciation);
+    var r = t.reading && t.reading !== "*" ? t.reading : S(t);
+    return aHira(r);
+  }
+
+  var POS_ES = {
+    "名詞": "sustantivo", "動詞": "verbo", "形容詞": "adjetivo -i", "副詞": "adverbio", "連体詞": "adnominal",
+    "接続詞": "conjunción", "感動詞": "interjección", "助詞": "partícula", "助動詞": "auxiliar",
+    "接頭詞": "prefijo", "記号": "signo", "フィラー": "muletilla"
+  };
+  function posEs(t) {
+    if (P(t) === "名詞" && D(t) === "形容動詞語幹") return "adjetivo -na";
+    if (P(t) === "名詞" && D(t) === "サ変接続") return "sustantivo (+する)";
+    if (P(t) === "名詞" && D(t) === "固有名詞") return "nombre propio";
+    if (P(t) === "名詞" && D(t) === "代名詞") return "pronombre";
+    if (P(t) === "名詞" && D(t) === "数") return "número";
+    if (P(t) === "名詞" && D(t) === "接尾") return "sufijo";
+    if ((P(t) === "動詞" || P(t) === "形容詞") && D(t) === "非自立") return POS_ES[P(t)] + " auxiliar";
+    if (P(t) === "動詞" && D(t) === "接尾") return "sufijo verbal";
+    return POS_ES[P(t)] || P(t);
+  }
+  var FORMA_ES = {
+    "基本形": "forma de diccionario", "連用形": "forma continuativa (連用形)", "連用タ接続": "forma て/た (連用形)",
+    "連用テ接続": "forma て (連用形)", "連用ゴザイ接続": "forma continuativa", "未然形": "forma negativa (未然形)",
+    "未然ウ接続": "forma volitiva (未然形)", "未然ヌ接続": "forma negativa (未然形)", "未然レル接続": "forma pasiva (未然形)",
+    "仮定形": "forma condicional (仮定形)", "仮定縮約１": "forma condicional contraída", "命令ｅ": "imperativo",
+    "命令ｒｏ": "imperativo", "命令ｙｏ": "imperativo", "命令ｉ": "imperativo", "体言接続": "forma atributiva",
+    "ガル接続": "raíz (+がる)"
+  };
+  function formaEs(t) { var f = F(t); return f && f !== "*" ? (FORMA_ES[f] || f) : ""; }
+
+  var PARTICULAS = {
+    "は": "tema de la frase", "が": "sujeto / foco", "を": "objeto directo", "に": "destino, momento u objeto indirecto",
+    "で": "lugar de la acción o medio", "へ": "dirección", "と": "«y» / «con» / cita", "も": "también, incluso",
+    "の": "posesión o nominalizador", "から": "desde / porque", "まで": "hasta", "より": "que (comparación) / desde",
+    "や": "«y» (lista incompleta)", "か": "pregunta / «o»", "ね": "¿verdad? (busca acuerdo)", "よ": "énfasis, informa algo nuevo",
+    "な": "prohibición o exclamación", "わ": "énfasis suave", "だけ": "solo", "しか": "nada más que (con negativo)",
+    "ばかり": "solo, nada más que", "など": "etcétera, cosas como", "くらい": "aproximadamente", "ぐらい": "aproximadamente",
+    "ほど": "tanto como", "には": "para / en (con énfasis)", "では": "en (con énfasis)", "とは": "lo que es…", "への": "hacia (+ sustantivo)",
+    "での": "en (+ sustantivo)", "との": "con (+ sustantivo)", "からの": "desde (+ sustantivo)", "までに": "antes de, como tarde",
+    "って": "cita coloquial / «dicen que»", "けど": "pero", "でも": "incluso / o algo así", "さえ": "incluso, hasta"
+  };
+
+  // Patrones gramaticales sobre los tokens de un bloque. Devuelven cuántos tokens abarcan.
+  // "busca": nombres con los que se intenta enlazar el punto de la hoja de gramática.
+  function sigue(toks, i, n) { return toks[i + n]; }
+  var PATRONES = [
+    { n: "〜なければならない", s: "tener que, deber", busca: ["なければならない", "なければなりません", "なければ"],
+      m: function (t, i) { var a = t[i], b = t[i + 1], c = t[i + 2], d = t[i + 3];
+        return a && B(a) === "ない" && F(a) === "仮定形" && b && S(b) === "ば" && c && B(c) === "なる" && d && (B(d) === "ない" || B(d) === "ぬ" || B(d) === "ます") ? 4 : 0; } },
+    { n: "〜てから", s: "después de (hacer)", busca: ["てから"],
+      m: function (t, i) { return esTe(t[i]) && sigue(t, i, 1) && S(t[i + 1]) === "から" ? 2 : 0; } },
+    { n: "〜てください", s: "por favor, haz…", busca: ["てください", "ください"],
+      m: function (t, i) { return esTe(t[i]) && sigue(t, i, 1) && B(t[i + 1]) === "くださる" ? 2 : 0; } },
+    { n: "〜てもいい", s: "está permitido, se puede", busca: ["てもいい", "てもいいです", "てもよい"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && S(t[i + 1]) === "も" && t[i + 2] && (B(t[i + 2]) === "いい" || B(t[i + 2]) === "よい") ? 3 : 0; } },
+    { n: "〜てはいけない", s: "no se debe, está prohibido", busca: ["てはいけない", "てはいけません", "ではいけない"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && S(t[i + 1]) === "は" && t[i + 2] && B(t[i + 2]) === "いける" ? 3 : 0; } },
+    { n: "〜ている", s: "acción en curso o estado resultante", busca: ["ている", "ています", "てる"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && B(t[i + 1]) === "いる" && P(t[i + 1]) === "動詞" ? 2 : 0; } },
+    { n: "〜てある", s: "estado que resulta de una acción hecha a propósito", busca: ["てある"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && B(t[i + 1]) === "ある" && D(t[i + 1]) === "非自立" ? 2 : 0; } },
+    { n: "〜てしまう", s: "acabar haciendo / hacer sin querer", busca: ["てしまう", "てしまいます", "ちゃう"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && B(t[i + 1]) === "しまう" ? 2 : 0; } },
+    { n: "〜てみる", s: "intentar, probar a hacer", busca: ["てみる", "てみます"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && B(t[i + 1]) === "みる" ? 2 : 0; } },
+    { n: "〜ておく", s: "hacer de antemano", busca: ["ておく", "ておきます", "とく"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && B(t[i + 1]) === "おく" ? 2 : 0; } },
+    { n: "〜てくる", s: "venir haciendo / cambio hacia el hablante", busca: ["てくる"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && B(t[i + 1]) === "くる" ? 2 : 0; } },
+    { n: "〜ていく", s: "ir haciendo / cambio que se aleja", busca: ["ていく"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && (B(t[i + 1]) === "いく" || B(t[i + 1]) === "ゆく") ? 2 : 0; } },
+    { n: "〜てあげる", s: "hacer algo por otra persona", busca: ["てあげる"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && B(t[i + 1]) === "あげる" ? 2 : 0; } },
+    { n: "〜てくれる", s: "alguien hace algo por mí", busca: ["てくれる"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && B(t[i + 1]) === "くれる" ? 2 : 0; } },
+    { n: "〜てもらう", s: "conseguir que alguien haga algo por mí", busca: ["てもらう"],
+      m: function (t, i) { return esTe(t[i]) && t[i + 1] && B(t[i + 1]) === "もらう" ? 2 : 0; } },
+    { n: "〜と思う", s: "creer, pensar que…", busca: ["と思う", "とおもう", "と思います"],
+      m: function (t, i) { return S(t[i]) === "と" && P(t[i]) === "助詞" && t[i + 1] && B(t[i + 1]) === "思う" ? 2 : 0; } },
+    { n: "〜と言う", s: "decir que… / llamarse", busca: ["と言う", "という", "といいます"],
+      m: function (t, i) { return S(t[i]) === "と" && P(t[i]) === "助詞" && t[i + 1] && (B(t[i + 1]) === "言う" || B(t[i + 1]) === "いう") ? 2 : 0; } },
+    { n: "〜と考える", s: "considerar que…", busca: ["と考える"],
+      m: function (t, i) { return S(t[i]) === "と" && P(t[i]) === "助詞" && t[i + 1] && B(t[i + 1]) === "考える" ? 2 : 0; } },
+    { n: "〜でしょう", s: "probablemente / ¿verdad?", busca: ["でしょう", "だろう"],
+      m: function (t, i) { return t[i + 1] && B(t[i]) === "です" && F(t[i]) === "未然ウ接続" && B(t[i + 1]) === "う" ? 2 : 0; } },
+    { n: "〜でした", s: "cópula cortés en pasado (era, estaba)", busca: ["でした"],
+      m: function (t, i) { return t[i + 1] && B(t[i]) === "です" && P(t[i]) === "助動詞" && B(t[i + 1]) === "た" ? 2 : 0; } },
+    { n: "〜ません", s: "negación cortés", busca: ["ません"],
+      m: function (t, i) { return t[i + 1] && B(t[i]) === "ます" && (S(t[i + 1]) === "ん" || B(t[i + 1]) === "ぬ") ? (t[i + 2] && S(t[i + 2]) === "でし" ? 4 : 2) : 0; } },
+    { n: "〜ました", s: "pasado cortés", busca: ["ました"],
+      m: function (t, i) { return t[i + 1] && B(t[i]) === "ます" && B(t[i + 1]) === "た" ? 2 : 0; } },
+    { n: "〜ましょう", s: "propuesta: hagamos…", busca: ["ましょう"],
+      m: function (t, i) { return t[i + 1] && B(t[i]) === "ます" && B(t[i + 1]) === "う" ? 2 : 0; } },
+    { n: "〜ます", s: "forma cortés (masu)", busca: ["ます"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "ます" ? 1 : 0; } },
+    { n: "〜たい", s: "querer hacer", busca: ["たい"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "たい" ? 1 : 0; } },
+    { n: "〜なかった", s: "negación en pasado", busca: ["なかった"],
+      m: function (t, i) { return t[i + 1] && P(t[i]) === "助動詞" && B(t[i]) === "ない" && B(t[i + 1]) === "た" ? 2 : 0; } },
+    { n: "〜ない", s: "negación", busca: ["ない"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && (B(t[i]) === "ない" || B(t[i]) === "ぬ" || B(t[i]) === "ん") ? 1 : 0; } },
+    { n: "〜たら", s: "si / cuando (condicional)", busca: ["たら"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "た" && F(t[i]) === "仮定形" ? 1 : 0; } },
+    { n: "〜た", s: "pasado / acción completada", busca: ["た"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "た" ? 1 : 0; } },
+    { n: "です", s: "cópula cortés: es, está", busca: ["です"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "です" ? 1 : 0; } },
+    { n: "だ", s: "cópula llana: es, está", busca: ["だ"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "だ" ? 1 : 0; } },
+    { n: "〜う／よう", s: "volitiva: voy a, vamos a", busca: ["よう", "おう"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && (B(t[i]) === "う" || B(t[i]) === "よう") ? 1 : 0; } },
+    { n: "〜らしい", s: "parece que (según dicen) / típico de", busca: ["らしい"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "らしい" ? 1 : 0; } },
+    { n: "〜ようだ", s: "parece que", busca: ["ようだ", "ように", "ような"],
+      m: function (t, i) { return P(t[i]) === "助動詞" && B(t[i]) === "ようだ" ? 1 : 0; } },
+    { n: "〜そうだ", s: "parece / dicen que", busca: ["そうだ", "そう"],
+      m: function (t, i) { return (P(t[i]) === "助動詞" && B(t[i]) === "そうだ") || (S(t[i]) === "そう" && D(t[i]) === "接尾") ? 1 : 0; } },
+    { n: "〜れる／られる", s: "pasiva, potencial o respeto", busca: ["られる", "れる"],
+      m: function (t, i) { return P(t[i]) === "動詞" && D(t[i]) === "接尾" && (B(t[i]) === "れる" || B(t[i]) === "られる") ? 1 : 0; } },
+    { n: "〜せる／させる", s: "causativa: hacer / dejar que", busca: ["させる", "せる"],
+      m: function (t, i) { return P(t[i]) === "動詞" && D(t[i]) === "接尾" && (B(t[i]) === "せる" || B(t[i]) === "させる") ? 1 : 0; } },
+    { n: "〜やすい", s: "fácil de", busca: ["やすい"],
+      m: function (t, i) { return P(t[i]) === "形容詞" && B(t[i]) === "やすい" && D(t[i]) !== "自立" ? 1 : 0; } },
+    { n: "〜にくい", s: "difícil de", busca: ["にくい", "づらい"],
+      m: function (t, i) { return P(t[i]) === "形容詞" && (B(t[i]) === "にくい" || B(t[i]) === "づらい") && D(t[i]) !== "自立" ? 1 : 0; } },
+    { n: "〜ば", s: "condicional: si…", busca: ["ば"],
+      m: function (t, i) { return P(t[i]) === "助詞" && S(t[i]) === "ば" ? 1 : 0; } },
+    { n: "〜ながら", s: "mientras", busca: ["ながら"],
+      m: function (t, i) { return P(t[i]) === "助詞" && S(t[i]) === "ながら" ? 1 : 0; } },
+    { n: "〜ので", s: "porque, ya que", busca: ["ので"],
+      m: function (t, i) { return P(t[i]) === "助詞" && S(t[i]) === "ので" ? 1 : 0; } },
+    { n: "〜のに", s: "aunque, a pesar de que", busca: ["のに"],
+      m: function (t, i) { return P(t[i]) === "助詞" && D(t[i]) === "接続助詞" && S(t[i]) === "のに" ? 1 : 0; } },
+    { n: "〜けど", s: "pero, aunque", busca: ["けど", "けれど", "けれども", "が"],
+      m: function (t, i) { return P(t[i]) === "助詞" && D(t[i]) === "接続助詞" && /^(けど|けれど|けれども|が)$/.test(S(t[i])) ? 1 : 0; } },
+    { n: "〜から", s: "porque", busca: ["から"],
+      m: function (t, i) { return P(t[i]) === "助詞" && D(t[i]) === "接続助詞" && S(t[i]) === "から" ? 1 : 0; } },
+    { n: "〜たり", s: "cosas como… (enumerar acciones)", busca: ["たり", "たりする", "たり〜たりする"],
+      m: function (t, i) { return P(t[i]) === "助詞" && (S(t[i]) === "たり" || S(t[i]) === "だり") ? 1 : 0; } },
+    { n: "〜て", s: "forma て: enlaza acciones o estados", busca: ["て", "てform"],
+      m: function (t, i) { return esTe(t[i]) ? 1 : 0; } }
+  ];
+  // Sustantivos gramaticales (非自立) que forman su propio bloque.
+  var SUST_GRAM = {
+    "つもり": "intención de", "はず": "debería (expectativa lógica)", "こと": "el hecho de (nominalizador)",
+    "ため": "para / por causa de", "ところ": "a punto de / justo cuando", "ほう": "lado (comparación, consejo)",
+    "もの": "cosa / razón (explicación)", "わけ": "razón, significa que", "の": "nominalizador / explicación (のだ)",
+    "ん": "explicación (んです)", "まま": "tal cual, sin cambiar", "うち": "mientras (aún)", "あいだ": "durante"
+  };
+
+  function detectarGramatica(toks) {
+    var tramos = [], i = 0, j, m;
+    while (i < toks.length) {
+      var hallado = null;
+      for (j = 0; j < PATRONES.length; j++) {
+        m = PATRONES[j].m(toks, i);
+        if (m) { hallado = { ini: i, fin: i + m, p: PATRONES[j] }; break; }
+      }
+      if (hallado) { tramos.push(hallado); i = hallado.fin; } else i++;
+    }
+    return tramos;
+  }
+
+  // Agrupa los tokens en bloques (similar a 文節): la palabra con sus auxiliares y
+  // partículas conectivas; las partículas de caso y de tema forman bloque propio.
+  function agrupar(toks) {
+    var grupos = [], g = null;
+    toks.forEach(function (t) {
+      if (P(t) === "記号" || /^\s+$/.test(S(t))) { grupos.push({ toks: [t], punt: true }); g = null; return; }
+      if (g && seAdjunta(g, t)) g.toks.push(t);
+      else { g = { toks: [t] }; grupos.push(g); }
+    });
+    // と (cita) + 思う/言う… se leen juntos: «to omoimasu».
+    for (var i = 0; i < grupos.length - 1; i++) {
+      var a = grupos[i], b = grupos[i + 1];
+      if (!a.punt && !b.punt && a.toks.length === 1 && S(a.toks[0]) === "と" && P(a.toks[0]) === "助詞" &&
+          P(b.toks[0]) === "動詞" && /^(思う|言う|いう|考える|感じる)$/.test(B(b.toks[0]))) {
+        a.toks = a.toks.concat(b.toks); a.cita = true; grupos.splice(i + 1, 1);
+      }
+    }
+    return grupos;
+  }
+  function seAdjunta(g, t) {
+    var prev = g.toks[g.toks.length - 1], primero = g.toks[0];
+    var esPart = P(primero) === "助詞";
+    if (esPart) {
+      return P(t) === "助詞" && (D(t) === "係助詞" || D(t) === "連体化" || (D(t) === "格助詞" && S(prev) !== S(t) && /^(に|で|と|から|まで|へ)$/.test(S(prev)) && S(t) === "の"));
+    }
+    var pred = g.toks.some(function (x) { return P(x) === "動詞" || P(x) === "形容詞" || P(x) === "助動詞"; }) ||
+      (P(prev) === "名詞" && D(prev) === "形容動詞語幹");
+    if (P(prev) === "接頭詞") return true;
+    if (P(t) === "助動詞") return true;
+    if ((P(t) === "動詞" || P(t) === "形容詞") && (D(t) === "非自立" || D(t) === "接尾")) return P(prev) !== "名詞" || D(t) === "接尾" || pred;
+    if (P(t) === "名詞" && D(t) === "接尾") return true;
+    if (P(t) === "動詞" && B(t) === "する" && P(prev) === "名詞" && D(prev) === "サ変接続") return true;
+    if (P(t) === "助詞" && D(t) === "接続助詞" && pred) return true;
+    if (P(t) === "助詞" && esTe(prev) && /^(から|は|も)$/.test(S(t))) return true;
+    if (P(t) === "助詞" && /^(たり|だり)$/.test(S(t)) && pred) return true;
+    return false;
+  }
+
+  function tipoGrupo(g) {
+    if (g.punt) return { id: "punt", es: "", color: "var(--gray)" };
+    var t0 = g.toks[0];
+    if (g.cita) return { id: "gram", es: "cita + verbo + gramática", color: "var(--c-gram)" };
+    if (P(t0) === "助詞") return { id: "part", es: "partícula", color: "var(--c-part)" };
+    var gram = g.tramos && g.tramos.length > 0;
+    var conGram = function (s) { return gram ? s + " + gramática" : s; };
+    var lex = g.toks.filter(function (t) { return P(t) !== "助詞" && P(t) !== "助動詞" && D(t) !== "非自立" && D(t) !== "接尾"; })[0] || t0;
+    if (g.toks.some(function (t) { return P(t) === "動詞" && D(t) === "自立"; })) {
+      var v = g.toks.filter(function (t) { return P(t) === "動詞" && D(t) === "自立"; })[0];
+      if (P(lex) === "名詞" && D(lex) === "サ変接続") return { id: "lex", es: conGram("verbo する"), color: "var(--c-lex)" };
+      return { id: "lex", es: conGram("verbo"), color: "var(--c-lex)", lema: v };
+    }
+    if (P(lex) === "助動詞") return { id: "gram", es: "auxiliar", color: "var(--c-gram)" };
+    if (P(lex) === "名詞" && SUST_GRAM[S(lex)] && D(lex) === "非自立") return { id: "gram", es: "sustantivo gramatical", color: "var(--c-gram)" };
+    return { id: "lex", es: conGram(posEs(lex)), color: "var(--c-lex)" };
+  }
+
+  // ------------------------------------------------------------------ datos del jardín
+  function normGram(s) {
+    return String(s || "").normalize("NFC").replace(/[\s〜~～・…\.\[\]()（）「」『』+＋/／]/g, "").replace(/^[A-Za-zＡ-Ｚａ-ｚ]+/, "");
+  }
+  function indexarGramatica() {
+    GRAM_IDX = {};
+    (DATOS.g || []).forEach(function (e) {
+      [e[1], e[2]].forEach(function (n) {
+        String(n || "").split(/[・／\/,、]/).forEach(function (parte) {
+          var k = normGram(parte);
+          if (k && !GRAM_IDX[k]) GRAM_IDX[k] = e;
+        });
+      });
+    });
+  }
+  function buscarGramatica(cands) {
+    for (var i = 0; i < cands.length; i++) { var e = GRAM_IDX[normGram(cands[i])]; if (e) return e; }
+    return null;
+  }
+  var url = {
+    kanji: function (c) { return BASE + "/kanji/" + nombreSeguro(c); },
+    comp: function (c) { return BASE + "/componentes/" + nombreSeguro(c); },
+    vocab: function (p) { return BASE + "/vocab/" + nombreSeguro(p); },
+    gram: function (slug) { return BASE + "/gramatica/" + slug; }
+  };
+  function vocabDe(t) {
+    var cands = [S(t), B(t)];
+    for (var i = 0; i < cands.length; i++) if (DATOS.v[cands[i]]) return { palabra: cands[i], d: DATOS.v[cands[i]] };
+    return null;
+  }
+  function vocabGrupo(g) {
+    var sup = g.toks.map(S).join("");
+    if (DATOS.v[sup]) return { palabra: sup, d: DATOS.v[sup] };
+    var lex = g.toks.filter(function (t) { return P(t) !== "助詞" && P(t) !== "助動詞" && D(t) !== "非自立"; });
+    if (lex.length === 1) return vocabDe(lex[0]);
+    if (lex.length > 1) {
+      var junto = lex.map(S).join(""), base = lex.slice(0, -1).map(S).join("") + B(lex[lex.length - 1]);
+      if (DATOS.v[base]) return { palabra: base, d: DATOS.v[base] };
+      if (DATOS.v[junto]) return { palabra: junto, d: DATOS.v[junto] };
+    }
+    return null;
+  }
+  function significadoComp(c) { return DATOS.c[c] || (DATOS.k[c] && DATOS.k[c][0]) || ""; }
+
+  // ------------------------------------------------------------------ análisis → árbol
+  function romajiGrupo(g) {
+    var out = "";
+    g.toks.forEach(function (t, i) {
+      var r = romaji(lectura(t)), prev = g.toks[i - 1];
+      if (i > 0 && ((P(t) === "助詞" && !esTe(t) && !/^(ば|たり|だり)$/.test(S(t)) && !(P(prev) === "助詞" && !esTe(prev))) ||
+          (P(prev) === "助詞" && !esTe(prev) && P(t) !== "助詞") || (P(prev) === "名詞" && P(t) === "動詞" && D(t) === "自立"))) out += " ";
+      out += r;
+    });
+    return out.replace(/\u0001(\s?)([bcdfghjkmprstvwz])/g, function (m, esp, c) { return (c === "c" ? "t" : c) + esp + c; }).replace(/\u0001/g, "");
+  }
+
+  function nodoCaracteres(sup, verComp) {
+    return Array.from(sup).map(function (ch) {
+      if (esKanji(ch) && ch !== "々") {
+        var k = DATOS.k[ch];
+        var hijos = verComp && k ? (k[3] || []).map(function (c) {
+          return { fila: 5, tipo: "comp", texto: c, sub: (significadoComp(c) || "componente").split(",")[0], href: url.comp(c), titulo: c + (significadoComp(c) ? " · " + significadoComp(c) : "") };
+        }) : [];
+        return { fila: 4, tipo: "kanji", texto: ch, sub: k ? String(k[0]).split(",")[0] : "kanji", href: k ? url.kanji(ch) : "",
+          titulo: ch + (k ? " · " + k[0] + (k[1] ? " · on: " + k[1] : "") + (k[2] ? " · kun: " + k[2] : "") : ""), hijos: hijos };
+      }
+      return { fila: 4, tipo: "kana", texto: ch, sub: ch === "っ" || ch === "ッ" ? "pausa (dobla)" : romaji(ch).replace(/\u0001/g, "") };
+    });
+  }
+
+  function nodoMorfema(t, verComp) {
+    var sup = S(t), tieneKanji = RE_KANJI.test(sup);
+    var voc = vocabDe(t);
+    var forma = formaEs(t);
+    var sub = P(t) === "助詞" ? (PARTICULAS[sup] ? "partícula" : "partícula") : (B(t) !== sup ? B(t) : posEs(t));
+    return {
+      fila: 3, tipo: P(t) === "助詞" ? "part" : (P(t) === "助動詞" ? "gram" : "lex"), texto: sup, sub: sub,
+      href: voc ? url.vocab(voc.palabra) : "",
+      titulo: sup + " · " + posEs(t) + (B(t) !== sup ? " · de " + B(t) : "") + (forma ? " · " + forma : "") + (voc && voc.d[1] ? " · " + voc.d[1] : ""),
+      hijos: tieneKanji ? nodoCaracteres(sup, verComp) : []
+    };
+  }
+
+  function construirArbol(frase, grupos, verComp) {
+    var raiz = { fila: 0, tipo: "raiz", texto: frase.length > 40 ? frase.slice(0, 38) + "…" : frase, sub: grupos.filter(function (g) { return !g.punt; }).length + " bloques", hijos: [] };
+    grupos.forEach(function (g, gi) {
+      if (g.punt) return;
+      var tg = g.tipo, sup = g.toks.map(S).join("");
+      var voc = vocabGrupo(g);
+      var nodo = { fila: 1, tipo: tg.id === "part" ? "part" : tg.id === "gram" ? "gram" : "lex", grupo: gi, texto: sup, sub: g.romaji,
+        href: voc ? url.vocab(voc.palabra) : "", titulo: sup + " · " + g.romaji + " · " + tg.es + (voc && voc.d[1] ? " · " + voc.d[1] : ""), hijos: [] };
+      if (tg.id === "part" && !g.cita) {
+        var gp = buscarGramatica([sup]);
+        if (gp) nodo.href = url.gram(gp[0]);
+        nodo.titulo = sup + " · partícula" + (PARTICULAS[sup] ? " · " + PARTICULAS[sup] : "");
+        nodo.sub = g.romaji + (PARTICULAS[sup] ? " · " + PARTICULAS[sup].split(/[,/(]/)[0].trim() : "");
+        if (g.toks.length > 1) nodo.hijos = g.toks.map(function (t) { return nodoMorfema(t, verComp); });
+      } else if (g.toks.length === 1 && !g.tramos.length) {
+        nodo.hijos = RE_KANJI.test(sup) ? nodoCaracteres(sup, verComp) : [];
+      } else {
+        var i = 0;
+        g.tramos.concat([{ ini: g.toks.length, fin: g.toks.length }]).forEach(function (tr) {
+          for (; i < tr.ini; i++) nodo.hijos.push(nodoMorfema(g.toks[i], verComp));
+          if (!tr.p) return;
+          var e = tr.enlace;
+          nodo.hijos.push({ fila: 2, tipo: "gram", texto: tr.p.n, sub: tr.p.s, href: e ? url.gram(e[0]) : "", grupo: gi,
+            titulo: tr.p.n + " · " + tr.p.s + (e ? " · ficha: " + e[1] : ""),
+            hijos: g.toks.slice(tr.ini, tr.fin).map(function (t) { return nodoMorfema(t, verComp); }) });
+          i = tr.fin;
+        });
+      }
+      marcarGrupo(nodo, gi);
+      raiz.hijos.push(nodo);
+    });
+    return raiz;
+  }
+  function marcarGrupo(n, gi) { n.grupo = gi; (n.hijos || []).forEach(function (h) { marcarGrupo(h, gi); }); }
+
+  // ------------------------------------------------------------------ dibujo del árbol (SVG)
+  var FILAS = ["Frase", "Bloques", "Gramática", "Morfemas", "Caracteres", "Componentes"];
+  var COLOR = { raiz: "var(--dark)", lex: "var(--c-lex)", part: "var(--c-part)", gram: "var(--c-gram)", kanji: "var(--c-kanji)", kana: "var(--c-kana)", comp: "var(--c-comp)" };
+  var TAM = { raiz: 17, lex: 20, part: 20, gram: 15, kanji: 24, kana: 17, comp: 17 };
+  var medidor = document.createElement("canvas").getContext("2d");
+  var FUENTE = getComputedStyle(document.body).fontFamily;
+  function ancho(txt, px, peso) { medidor.font = (peso || "400") + " " + px + "px " + FUENTE; return medidor.measureText(txt).width; }
+
+  function dibujar(raiz, verComp) {
+    var filasUsadas = verComp ? 6 : 5;
+    var ALTO_FILA = 86, MARGEN_IZQ = 96, HUECO = 10, ARRIBA = 16;
+    // Medidas de cada nodo
+    (function medir(n) {
+      var px = TAM[n.tipo] || 16;
+      var sub = n.sub ? String(n.sub) : "";
+      if (sub.length > 22) sub = sub.slice(0, 21) + "…";
+      n.subCorto = sub;
+      n.w = Math.max(ancho(n.texto, px, n.tipo === "raiz" ? "700" : "500") + 20, ancho(sub, 10.5) + 14, n.tipo === "kanji" || n.tipo === "kana" || n.tipo === "comp" ? 48 : 40);
+      n.h = px + 26;
+      (n.hijos || []).forEach(medir);
+    })(raiz);
+    // Ancho de subárbol y posición x
+    (function anchoSub(n) {
+      var hs = n.hijos || [];
+      var suma = hs.reduce(function (a, h) { return a + anchoSub(h); }, 0) + Math.max(0, hs.length - 1) * HUECO;
+      n.ws = Math.max(n.w, suma);
+      return n.ws;
+    })(raiz);
+    (function colocar(n, x0) {
+      var hs = n.hijos || [];
+      var suma = hs.reduce(function (a, h) { return a + h.ws; }, 0) + Math.max(0, hs.length - 1) * HUECO;
+      var x = x0 + (n.ws - suma) / 2;
+      hs.forEach(function (h) { colocar(h, x); x += h.ws + HUECO; });
+      n.cx = hs.length ? (hs[0].cx + hs[hs.length - 1].cx) / 2 : x0 + n.ws / 2;
+      n.cy = ARRIBA + n.fila * ALTO_FILA + ALTO_FILA / 2 - 6;
+    })(raiz, MARGEN_IZQ);
+
+    var W = Math.ceil(MARGEN_IZQ + raiz.ws + 16), H = ARRIBA + filasUsadas * ALTO_FILA;
+    var partes = [];
+    for (var f = 0; f < filasUsadas; f++) {
+      if (f % 2 === 1) partes.push('<rect class="banda" x="0" y="' + (ARRIBA + f * ALTO_FILA - 6) + '" width="' + W + '" height="' + ALTO_FILA + '"/>');
+      partes.push('<text class="etiqueta-fila" x="12" y="' + (ARRIBA + f * ALTO_FILA + ALTO_FILA / 2 - 2) + '">' + FILAS[f] + "</text>");
+    }
+    var aristas = [], nodos = [];
+    (function recorrer(n) {
+      (n.hijos || []).forEach(function (h) {
+        var y1 = n.cy + n.h / 2, y2 = h.cy - h.h / 2, ym = (y1 + y2) / 2;
+        aristas.push('<path class="arista" data-g="' + (h.grupo == null ? "" : h.grupo) + '" d="M' + n.cx + "," + y1 + " C" + n.cx + "," + ym + " " + h.cx + "," + ym + " " + h.cx + "," + y2 + '"/>');
+        recorrer(h);
+      });
+      var c = COLOR[n.tipo] || "var(--gray)", px = TAM[n.tipo] || 16;
+      var x = n.cx - n.w / 2, y = n.cy - n.h / 2;
+      var cuerpo =
+        '<rect x="' + x + '" y="' + y + '" width="' + n.w + '" height="' + n.h + '" rx="9" fill="color-mix(in srgb, ' + c + ' ' + (n.href ? 16 : 8) + '%, var(--light))" stroke="' + c + '"' + (n.href ? ' stroke-width="2.2"' : ' stroke-opacity="0.55"') + "/>" +
+        '<text x="' + n.cx + '" y="' + (y + px + 3) + '" text-anchor="middle" font-size="' + px + '" font-weight="' + (n.tipo === "raiz" ? 700 : 500) + '" fill="' + (n.tipo === "raiz" ? "var(--dark)" : c) + '" class="jp">' + esc(n.texto) + "</text>" +
+        (n.subCorto ? '<text x="' + n.cx + '" y="' + (y + n.h - 7) + '" text-anchor="middle" font-size="10.5" fill="var(--darkgray)">' + esc(n.subCorto) + "</text>" : "") +
+        "<title>" + esc(n.titulo || n.texto) + "</title>";
+      nodos.push('<g class="nodo" data-g="' + (n.grupo == null ? "" : n.grupo) + '" style="--c:' + c + '">' +
+        (n.href ? '<a href="' + esc(n.href) + '">' + cuerpo + "</a>" : cuerpo) + "</g>");
+    })(raiz);
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Desglose de la frase">' +
+      partes.join("") + aristas.join("") + nodos.join("") + "</svg>";
+  }
+
+  // ------------------------------------------------------------------ vista
+  var ultimo = null;
+
+  function analizar(frase) {
+    var toks = tokenizador.tokenize(frase);
+    var grupos = agrupar(toks);
+    grupos.forEach(function (g) {
+      if (g.punt) { g.tipo = tipoGrupo(g); return; }
+      g.tramos = P(g.toks[0]) === "助詞" && !g.cita ? [] : detectarGramatica(g.toks);
+      if (!g.tramos.length && g.toks.length === 1 && SUST_GRAM[S(g.toks[0])] && D(g.toks[0]) === "非自立") {
+        g.tramos = [{ ini: 0, fin: 1, p: { n: S(g.toks[0]), s: SUST_GRAM[S(g.toks[0])], busca: [S(g.toks[0])] } }];
+      }
+      g.tramos.forEach(function (tr) { tr.enlace = buscarGramatica(tr.p.busca.concat(g.toks.slice(tr.ini, tr.fin).map(S).join(""))); });
+      g.romaji = romajiGrupo(g);
+      g.tipo = tipoGrupo(g);
+    });
+    return { frase: frase, grupos: grupos };
+  }
+
+  function pintar(res) {
+    ultimo = res;
+    $("inicio").hidden = true;
+    $("resultado").hidden = false;
+    // Bloques
+    $("bloques").innerHTML = res.grupos.map(function (g, gi) {
+      var sup = g.toks.map(function (t) { return furigana(S(t), lectura(t)); }).join("");
+      if (g.punt) return '<span class="bloque punt"><span class="superficie">' + sup + "</span></span>";
+      return '<button type="button" class="bloque" data-g="' + gi + '" style="--color:' + g.tipo.color + '">' +
+        '<span class="superficie">' + sup + '</span><span class="romaji">' + esc(g.romaji) + '</span><span class="tipo">' + esc(g.tipo.es) + "</span></button>";
+    }).join("");
+    pintarArbol();
+    // Tarjetas
+    $("detalle").innerHTML = res.grupos.map(function (g, gi) {
+      if (g.punt) return "";
+      var sup = g.toks.map(S).join(""), lineas = [];
+      var voc = vocabGrupo(g);
+      if (voc) lineas.push('<li><span class="pieza">語</span><span class="desc"><a class="enlace" href="' + esc(url.vocab(voc.palabra)) + '">' + esc(voc.palabra) + "</a>" + (voc.d[0] ? " (" + esc(voc.d[0]) + ")" : "") + (voc.d[1] ? " · " + esc(voc.d[1]) : "") + "</span></li>");
+      if (g.tipo.id === "part" && !g.cita) {
+        var gp = buscarGramatica([sup]);
+        g.toks.forEach(function (t) {
+          lineas.push('<li class="gram"><span class="pieza jp">' + esc(S(t)) + '</span><span class="desc">' + esc(PARTICULAS[S(t)] || posEs(t)) + "</span></li>");
+        });
+        if (g.toks.length > 1 && PARTICULAS[sup]) lineas.push('<li class="gram"><span class="pieza jp">' + esc(sup) + '</span><span class="desc">' + esc(PARTICULAS[sup]) + "</span></li>");
+        if (gp) lineas.push('<li><span class="pieza">文</span><span class="desc">Ficha: <a class="enlace" href="' + esc(url.gram(gp[0])) + '">' + esc(gp[1]) + "</a>" + (gp[3] ? " · " + esc(gp[3]) : "") + "</span></li>");
+      } else {
+        g.tramos.forEach(function (tr) {
+          var e = tr.enlace;
+          lineas.push('<li class="gram"><span class="pieza jp">' + esc(tr.p.n) + '</span><span class="desc">' + esc(tr.p.s) +
+            (e ? ' · <a class="enlace" href="' + esc(url.gram(e[0])) + '">ficha ' + esc(e[1]) + "</a>" + (e[4] ? ' <span class="etq">' + esc(e[4]) + "</span>" : "") : "") + "</span></li>");
+        });
+        g.toks.forEach(function (t) {
+          var forma = formaEs(t);
+          var desc = posEs(t) + (B(t) !== S(t) ? " · de <span class=\"jp\">" + esc(B(t)) + "</span>" : "") + (forma && F(t) !== "基本形" ? " · " + esc(forma) : "");
+          lineas.push('<li><span class="pieza jp">' + furigana(S(t), lectura(t)) + '</span><span class="desc">' + desc + "</span></li>");
+        });
+      }
+      var kanjis = Array.from(new Set(Array.from(sup).filter(function (c) { return esKanji(c) && c !== "々"; })));
+      kanjis.forEach(function (c) {
+        var k = DATOS.k[c];
+        var comps = k && k[3] && k[3].length ? " · " + k[3].map(function (x) { return '<a class="enlace jp" href="' + esc(url.comp(x)) + '">' + esc(x) + "</a>"; }).join(" ") : "";
+        lineas.push('<li class="kan"><span class="pieza jp">' + (k ? '<a class="enlace" href="' + esc(url.kanji(c)) + '">' + esc(c) + "</a>" : esc(c)) + '</span><span class="desc">' +
+          (k ? esc(k[0] || "") + (k[1] ? ' <span class="etq">on ' + esc(k[1]) + "</span>" : "") + (k[2] ? ' <span class="etq">kun ' + esc(k[2]) + "</span>" : "") + (k[4] ? ' <span class="etq">' + esc(k[4]) + "</span>" : "") + comps : "aún no está en el jardín") + "</span></li>");
+      });
+      return '<article class="tarjeta" id="bloque-' + gi + '" style="--color:' + g.tipo.color + '"><div class="cab"><span class="superficie jp">' +
+        g.toks.map(function (t) { return furigana(S(t), lectura(t)); }).join("") + '</span><span class="romaji">' + esc(g.romaji) + '</span><span class="tipo">' + esc(g.tipo.es) + "</span></div><ul>" + lineas.join("") + "</ul></article>";
+    }).join("");
+  }
+
+  function pintarArbol() {
+    if (!ultimo) return;
+    var verComp = $("ver-componentes").checked;
+    $("lienzo").innerHTML = dibujar(construirArbol(ultimo.frase, ultimo.grupos, verComp), verComp);
+    $("lienzo").classList.remove("foco");
+    document.querySelectorAll(".bloque.activo, .tarjeta.activo").forEach(function (e) { e.classList.remove("activo"); });
+  }
+
+  function enfocar(gi) {
+    var lienzo = $("lienzo"), yaActivo = document.querySelector('.bloque.activo[data-g="' + gi + '"]');
+    document.querySelectorAll(".bloque.activo, .tarjeta.activo").forEach(function (e) { e.classList.remove("activo"); });
+    lienzo.querySelectorAll(".sel").forEach(function (e) { e.classList.remove("sel"); });
+    if (yaActivo) { lienzo.classList.remove("foco"); return; }
+    lienzo.classList.add("foco");
+    var primero = null;
+    lienzo.querySelectorAll('[data-g="' + gi + '"]').forEach(function (e) { e.classList.add("sel"); if (!primero && e.classList.contains("nodo")) primero = e; });
+    var b = document.querySelector('.bloque[data-g="' + gi + '"]'); if (b) b.classList.add("activo");
+    var t = $("bloque-" + gi); if (t) t.classList.add("activo");
+    if (primero) {
+      var r = primero.getBBox();
+      lienzo.scrollTo({ left: Math.max(0, r.x + r.width / 2 - lienzo.clientWidth / 2), behavior: "smooth" });
+    }
+  }
+
+  // ------------------------------------------------------------------ arranque
+  function estado(txt, error) { var e = $("estado"); e.textContent = txt || ""; e.classList.toggle("error", !!error); }
+
+  function fraseDeUrl() { return (new URLSearchParams(location.search).get("t") || "").trim().slice(0, 300); }
+
+  function ejecutar(frase) {
+    if (!frase) { $("resultado").hidden = true; $("inicio").hidden = false; ultimo = null; document.title = "Analizador de frases · Kanji Garden"; return; }
+    $("entrada").value = frase;
+    if (!tokenizador) { estado("Cargando el diccionario japonés…"); return; }
+    try {
+      pintar(analizar(frase));
+      document.title = frase + " · Analizador · Kanji Garden";
+      estado("");
+    } catch (err) {
+      console.error(err);
+      estado("No se pudo analizar la frase: " + err.message, true);
+    }
+  }
+
+  $("form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var frase = $("entrada").value.trim().slice(0, 300);
+    if (!frase) return;
+    if (frase !== fraseDeUrl()) history.pushState(null, "", location.pathname + "?t=" + encodeURIComponent(frase));
+    ejecutar(frase);
+    $("entrada").blur();
+  });
+  window.addEventListener("popstate", function () { ejecutar(fraseDeUrl()); });
+  $("bloques").addEventListener("click", function (ev) {
+    var b = ev.target.closest(".bloque[data-g]"); if (b) enfocar(b.getAttribute("data-g"));
+  });
+  $("ver-componentes").addEventListener("change", pintarArbol);
+  $("btn-tema").addEventListener("click", function () {
+    var t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", t);
+    try { localStorage.setItem("theme", t); } catch (e) {}
+  });
+  $("volver").href = BASE + "/";
+
+  var EJEMPLOS = ["寿司を食べてから、家に帰りたいと思います。", "日本語を勉強しています。", "雨が降っていたので、行かなければならなかった。", "この本は読みやすいです。", "明日は友達と映画を見に行きましょう。"];
+  $("ejemplos").innerHTML = EJEMPLOS.map(function (e) { return '<button type="button">' + esc(e) + "</button>"; }).join("");
+  $("ejemplos").addEventListener("click", function (ev) {
+    var b = ev.target.closest("button"); if (!b) return;
+    $("entrada").value = b.textContent; $("form").requestSubmit ? $("form").requestSubmit() : $("form").dispatchEvent(new Event("submit"));
+  });
+
+  if (fraseDeUrl()) $("entrada").value = fraseDeUrl();
+  $("btn-analizar").disabled = true;
+  estado("Cargando el diccionario japonés (unos 12 MB la primera vez)…");
+
+  var datosListos = fetch(BASE + "/static/analizador.json")
+    .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(function (d) { DATOS = { k: d.k || {}, c: d.c || {}, v: d.v || {}, g: d.g || [] }; indexarGramatica(); })
+    .catch(function (e) { console.warn("Sin datos del jardín:", e); });
+
+  var kuromojiListo = new Promise(function (ok, mal) {
+    var s = document.createElement("script");
+    s.src = BASE + "/static/kuromoji/kuromoji.js";
+    s.onload = function () {
+      kuromoji.builder({ dicPath: BASE + "/static/kuromoji/dict/" }).build(function (err, t) { if (err) mal(err); else ok(t); });
+    };
+    s.onerror = function () { mal(new Error("no se pudo descargar kuromoji")); };
+    document.head.appendChild(s);
+  });
+
+  Promise.all([kuromojiListo, datosListos]).then(function (r) {
+    tokenizador = r[0];
+    $("btn-analizar").disabled = false;
+    estado("");
+    ejecutar(fraseDeUrl());
+    if (!fraseDeUrl()) $("entrada").focus();
+  }).catch(function (err) {
+    console.error(err);
+    estado("No se pudo cargar el analizador morfológico (" + (err && err.message || err) + "). Recarga la página para reintentarlo.", true);
+  });
+})();
+</script>
+</body>
+</html>

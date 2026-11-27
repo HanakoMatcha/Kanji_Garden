@@ -36,6 +36,13 @@ const CONTENT_DIR = "./content";
 const CATALOGOS_DIR = "./catalogos";
 // Texto de búsqueda de cada página de vocabulario; el workflow lo mete en contentIndex.json.
 const BUSQUEDA_VOCAB = "./busqueda_vocab.json";
+// Datos compactos para el analizador de frases (analizador.html); el workflow lo copia a
+// public/static/analizador.json. Así cada nodo del gráfico enlaza con su ficha del jardín.
+const DATOS_ANALIZADOR = "./analizador_datos.json";
+// k: kanji -> [significado, on, kun, componentes, jlpt]; c: componente -> significado;
+// v: palabra -> [kana, español]; g: [slug, nombre, lectura, significado, jlpt].
+const datosAnalizador = { k: {}, c: {}, v: {}, g: [] };
+const significadoBreve = (s) => String(s || "").split(/[;；]/)[0].split(/,(?![^(]*\))/).slice(0, 3).join(",").trim().slice(0, 90);
 
 ["vocab", "kanji", "componentes", "colecciones", "gramatica"].forEach((dir) => {
   const p = path.join(CONTENT_DIR, dir);
@@ -815,6 +822,7 @@ async function main() {
 
     const comps = filtrarComponentesValidos(componentesRaw);
     comps.forEach((c) => componentesGlobales.add(c));
+    datosAnalizador.k[kanji] = [significadoBreve(significado), onyomi, kunyomi, comps.filter((c) => c !== kanji), jlptKanji || ""];
     const compsLinks = comps.length > 0
       ? comps.map((c) => `[[componentes/${nombreSeguro(c)}|${c}]]`).join(", ")
       : "Ninguno";
@@ -897,6 +905,7 @@ tags:
 Revisa los backlinks o el gráfico para ver los kanjis que contienen este componente.
 ${seccionImagenes(comp)}`;
     escribirSiCambio(path.join(CONTENT_DIR, "componentes", `${nombreSeguro(comp)}.md`), md);
+    if (mapaSignificados.has(comp)) datosAnalizador.c[comp] = significadoBreve(mapaSignificados.get(comp));
     return { comp, significado: significadoComp };
   });
 
@@ -958,6 +967,7 @@ ${seccionImagenes(comp)}`;
       tags: tagsVocab.join(" "),
     };
     listaVocabCatalogo.push(itemVocab);
+    if (!datosAnalizador.v[palabra]) datosAnalizador.v[palabra] = [kana, significadoBreve(es || en)];
 
     const kanjis = extraerKanjis(palabra);
     const kanjiLinks = kanjis.length > 0
@@ -1099,6 +1109,7 @@ ${bloqueTraducciones}
         enlaceGrafo: `[[gramatica/${slug}|${aliasSeguro(nombreVisible)}]]`,
       };
       listaGramaticaCatalogo.push(item);
+      datosAnalizador.g.push([slug, nombreVisible, item.lectura, significadoBreve(significado), jlpt === SIN_JLPT ? "" : jlpt]);
       if (jlptTag && coleccionesGramatica[jlptTag]) coleccionesGramatica[jlptTag].push(item);
 
       // Conexiones con el resto del jardín (solo a páginas que existen, para no crear nodos fantasma).
@@ -1247,6 +1258,15 @@ enableFolderListing: false
 # Jardín Digital de Kanji y Léxico
 Base de datos viva e interconectada a partir de Google Sheets.
 
+<form class="barra-analizador" action="./analizador/" method="get" data-router-ignore>
+  <label class="titulo-barra-analizador" for="entrada-analizador">Analizador de frases · 文の解剖</label>
+  <div class="fila-barra-analizador">
+    <input id="entrada-analizador" name="t" type="text" lang="ja" autocomplete="off" placeholder="寿司を食べてから、家に帰りたいと思います。" required>
+    <button type="submit">Analizar</button>
+  </div>
+  <div class="ayuda-barra-analizador">Escribe una frase en japonés y pulsa Intro: se separa en palabras, partículas, gramática, kanji y componentes.</div>
+</form>
+
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 2rem 0;">
   <a href="./kanji/" class="card-dashboard" style="padding: 20px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--lightgray); display: block; text-decoration: none;">
     <div style="font-size: 2.2rem; margin-bottom: 6px; color: var(--secondary);">漢</div>
@@ -1303,6 +1323,9 @@ ${["n5", "n4", "n3", "n2", "n1"]
 `;
 
   escribirSiCambio(path.join(CONTENT_DIR, "index.md"), indexMd);
+
+  escribirSiCambio(DATOS_ANALIZADOR, JSON.stringify(datosAnalizador));
+  console.log(`Datos del analizador: ${Object.keys(datosAnalizador.k).length} kanjis, ${Object.keys(datosAnalizador.v).length} palabras, ${datosAnalizador.g.length} puntos gramaticales`);
 
   console.log("Compilación finalizada.");
 }
